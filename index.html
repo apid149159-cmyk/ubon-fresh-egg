@@ -31,7 +31,7 @@
 *{box-sizing:border-box}
 html{font-size:18px}
 body{margin:0;font-family:'Prompt',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;padding-bottom:180px;-webkit-tap-highlight-color:transparent;overflow-wrap:anywhere}
-button,input,textarea{font:inherit;color:inherit}
+button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:3px solid #1D4ED8;outline-offset:2px}
 h2[tabindex="-1"]:focus{outline:none}
@@ -129,7 +129,7 @@ h3{margin:0 0 6px;font-size:19px;line-height:1.3}
 /* ===== ฟอร์ม ===== */
 label{display:block;font-weight:600;font-size:17px;margin:12px 0 6px}
 label:first-child{margin-top:0}
-input[type=text],input[type=tel],textarea{width:100%;min-height:56px;border:2px solid #9C8A7A;border-radius:12px;padding:10px 12px;font-size:18px;background:#fff}
+input[type=text],input[type=tel],textarea,select{width:100%;min-height:56px;border:2px solid #9C8A7A;border-radius:12px;padding:10px 12px;font-size:18px;background:#fff}
 textarea{min-height:84px;resize:vertical}
 .choices{display:grid;gap:8px}
 .choices.two{grid-template-columns:1fr 1fr}
@@ -299,6 +299,7 @@ dialog button{min-height:56px;width:100%;border-radius:14px;border:0;background:
 </div>
 
 <main class="wrap">
+  <aside class="box note" aria-label="ทดลองใช้บริการ">เปิดทดลองสั่งไข่ผ่านเว็บ · สั่งก่อน 22:00 รับไข่วันถัดไปตามพื้นที่และรอบส่งที่เลือก · ร้านตรวจรับรายการก่อนจัดส่ง</aside>
   <p class="note box" id="recoveryNotice" role="status" hidden></p>
   <!-- ===== ขั้น 1 เลือกเบอร์ ===== -->
   <section class="step" id="step1" data-step="1" aria-labelledby="hStep1">
@@ -370,21 +371,27 @@ dialog button{min-height:56px;width:100%;border-radius:14px;border:0;background:
       <label for="custName" style="margin-top:14px">ชื่อผู้รับ</label>
       <input type="text" id="custName" autocomplete="name">
       <label for="custPhone">เบอร์โทร (10 หลัก)</label>
-      <input type="tel" id="custPhone" inputmode="numeric" autocomplete="tel" maxlength="12" placeholder="08x-xxx-xxxx">
+      <input type="tel" aria-describedby="phoneErr" id="custPhone" inputmode="numeric" autocomplete="tel" maxlength="12" placeholder="08x-xxx-xxxx">
       <p class="err hidden" id="phoneErr">เบอร์โทรต้องเป็นเลข 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09</p>
       <p class="note hidden" id="pickupNote">รับเองที่ร้าน ไม่ต้องกรอกที่อยู่ กรอกชื่อและเบอร์โทรไว้ให้ร้านติดต่อ</p>
       <div id="addrBlock">
         <label for="custAddr">ที่อยู่และจุดสังเกต</label>
         <textarea id="custAddr" autocomplete="street-address" placeholder="บ้านเลขที่ ซอย · ใกล้อะไร"></textarea>
         <button type="button" class="gps" id="btnGps">📍 ใช้ตำแหน่งที่อยู่ตอนนี้</button>
-        <p class="note" id="gpsMsg" aria-live="polite">ไม่บังคับ ช่วยให้คนส่งหาบ้านเจอเร็วขึ้น</p>
+        <p class="note" id="gpsMsg" aria-live="polite">ใช้ตำแหน่งจริงจากมือถือเมื่อกดอนุญาต ไม่บังคับ และส่งเฉพาะพิกัดที่คุณตรวจแล้วพร้อมออเดอร์</p>
+        <p class="note">อยู่คนละจุดกับที่รับไข่? วางพิกัดละติจูด, ลองจิจูดจากแผนที่ได้ เช่น 15.228000, 104.860000</p>
+        <label for="manualGps">พิกัดจุดรับไข่ (ไม่บังคับ)</label>
+        <input id="manualGps" type="text" inputmode="text" placeholder="ละติจูด, ลองจิจูด" autocomplete="off">
+        <button type="button" class="btn2 wide" id="btnUseManualGps">ใช้พิกัดนี้เป็นจุดรับไข่</button>
+        <button type="button" class="btn2 wide" id="btnClearGps" style="margin-top:8px">ล้างพิกัด ใช้ที่อยู่แทน</button>
+        <p class="note hidden" id="mapCheckWrap"><a id="mapCheck" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">เปิดตรวจจุดรับไข่ใน Google Maps ↗</a><br>เมื่อกดเปิดแผนที่ พิกัดนี้จะถูกส่งให้ Google Maps</p>
         <div class="pinwrap hidden" id="pinWrap">
-          <div class="lbl-h" style="margin-top:0">หมุดไม่ตรงบ้าน? กดลูกศรขยับทีละ 10 เมตร</div>
+          <div class="lbl-h" style="margin-top:0">ขยับจุดรับไข่ทีละ 10 เมตร · ภาพด้านล่างเป็นแผนผังช่วยขยับ ไม่ใช่แผนที่ถนนจริง</div>
           <svg class="pinbox" id="pinBox" viewBox="0 0 320 180" role="img" aria-labelledby="pinMoved"></svg>
           <div class="pad" role="group" aria-label="ขยับหมุด">
             <button type="button" class="up" data-nudge="n" aria-label="ขยับหมุดขึ้นทางเหนือ 10 เมตร">↑</button>
             <button type="button" class="lf" data-nudge="w" aria-label="ขยับหมุดไปทางตะวันตก 10 เมตร">←</button>
-            <button type="button" class="ct" id="nudgeReset" aria-label="กลับไปจุดที่ GPS หาได้">จุดเดิม</button>
+            <button type="button" class="ct" id="nudgeReset" aria-label="กลับไปจุดเริ่มต้น">จุดเดิม</button>
             <button type="button" class="rt" data-nudge="e" aria-label="ขยับหมุดไปทางตะวันออก 10 เมตร">→</button>
             <button type="button" class="dn" data-nudge="s" aria-label="ขยับหมุดลงทางใต้ 10 เมตร">↓</button>
           </div>
@@ -441,6 +448,12 @@ dialog button{min-height:56px;width:100%;border-radius:14px;border:0;background:
       <p class="note" id="sumNote"></p>
       <label class="consent"><input type="checkbox" id="consent"> ยินยอมให้ร้านใช้ชื่อ เบอร์โทร ที่อยู่ และตำแหน่ง เพื่อจัดส่งออเดอร์นี้เท่านั้น</label>
       <p class="note">เมื่อยืนยันสั่ง เว็บจะเก็บข้อมูลรายการนี้ในเบราว์เซอร์ของเครื่องนี้ เพื่อกู้คืนเมื่อเน็ตหลุดหรือเปิดใหม่ เมื่อทราบผลแล้ว กด “สั่งไข่ออเดอร์ใหม่” เพื่อลบข้อมูลที่เก็บในเครื่อง อย่าล้างข้อมูลเว็บไซต์ระหว่างรอผล</p>
+      <label class="consent"><input type="checkbox" id="researchConsent"> ยินยอมเพิ่มเติมให้นำข้อมูลรายการสั่งซื้อ พื้นที่ รอบส่ง และพิกัดที่ให้ไว้ ไปศึกษาความต้องการลูกค้าและวางแผนระบบจัดส่ง</label>
+      <p class="note">เลือกได้โดยสมัครใจ ไม่ยินยอมก็สั่งไข่ได้ตามปกติ ผลสรุปการวิจัยจะไม่แสดงชื่อ เบอร์โทร ที่อยู่ หรือพิกัดบ้านรายบุคคล</p>
+      <div id="researchQuestions" hidden>
+        <label for="researchBuyer">คุณซื้อไข่ไปใช้แบบไหน (ตอบหรือไม่ตอบก็ได้)</label>
+        <select id="researchBuyer"><option value="">ไม่ระบุ</option><option value="household">ใช้ในครัวเรือน</option><option value="restaurant">ร้านอาหาร / ทำอาหารขาย</option><option value="retail">ร้านค้า / นำไปขายต่อ</option><option value="other">อื่น ๆ</option></select>
+      </div>
       <p class="note" id="pdpaRetention">ร้านเก็บข้อมูลนี้ไว้ไม่เกิน 1 ปีหลังออเดอร์ล่าสุด แล้วลบชื่อ เบอร์ ที่อยู่ และพิกัดออก</p>
     </section>
   </section>
@@ -684,6 +697,30 @@ const CONFIG = {
 };
 const EGGS_PER_TRAY = 30;
 const M_PER_DEG_LAT = 111320;
+const RESEARCH_VERSION = 'ufe-research-2026-11-06-v1';
+function researchEntry(){
+  let src='link'; try { const p=new URLSearchParams(window.location.search); const v=p.get('src'); if(['pilot_qr','line','facebook','link'].includes(v)) src=v; } catch(e){}
+  return src;
+}
+function researchSnapshot(){
+  const consent=$('researchConsent').checked===true, buyer=$('researchBuyer').value;
+  return {noticeVersion:RESEARCH_VERSION, consent, consentAt:new Date().toISOString(),
+    entrySource:consent?researchEntry():null,
+    buyerType:consent&&['household','restaurant','retail','other'].includes(buyer)?buyer:null};
+}
+let gpsRequest=0, gpsPending=false;
+function cancelGpsRequest(){gpsRequest++;gpsPending=false;$('btnGps').disabled=false;}
+function usableGps(g){return !!g && Number.isFinite(g.lat)&&Number.isFinite(g.lng)&&g.lat>=14.5&&g.lat<=16.2&&g.lng>=104.2&&g.lng<=105.7;}
+function showGpsMap(){
+  const g=state.gps, valid=usableGps(g); $('mapCheckWrap').classList.toggle('hidden',!valid);
+  if(valid) $('mapCheck').setAttribute('href','https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(g.lat.toFixed(6)+','+g.lng.toFixed(6)));
+  else $('mapCheck').removeAttribute('href');
+}
+function applyGpsPoint(g,message){
+  state.gpsBase=g;state.nudge={n:0,e:0};setGpsFromNudge();
+  $('gpsMsg').className='okmsg';$('gpsMsg').textContent=message;renderAll();
+}
+
 
 /* ตัวเข้ารหัส QR คัดลอกจาก ubon-qr-poster.html (ไม่แก้ไขตรรกะ) */
 /* =====================================================================
@@ -932,7 +969,7 @@ CONFIG.sizes.forEach(s => {
   packsOf(s.code).forEach(p => PRODUCTS.push({ key:keyOf(s.code,p.packEggs), size:s.code, packEggs:p.packEggs, tray:false, name:p.name, short:p.packEggs+' ฟอง', baht:p.baht, tagline:p.tagline }));
 });
 
-const state = { step:1, curSize:'2', cart:{}, zone:'WRN', prevZone:'WRN', slot:'MORNING', pay:'PREPAY_TRANSFER', swap:0,
+const state = { step:1, curSize:'2', cart:{}, zone:'WRN', prevZone:'WRN', slot:'MORNING', pay:CONFIG.promptpay.id ? 'PREPAY_TRANSFER' : 'COD', swap:0,
   gps:null, gpsBase:null, nudge:{ n:0, e:0 }, lastNudge:'', sending:false, submitted:null };
 PRODUCTS.forEach(p => state.cart[p.key] = 0);
 
@@ -968,7 +1005,7 @@ function renderCutoff(){
   const pickup = !!curZone().pickup;
   $('dateLbl').textContent = pickup ? 'วันรับไข่ที่ร้าน' : 'วันส่ง';
   $('dateTxt').textContent = d.dateTxt;
-  $('dateNote').textContent = d.before ? `สั่งก่อน ${cutTxt()} ได้ไข่พรุ่งนี้` : `สั่งตั้งแต่ ${cutTxt()} จึงได้ไข่วันถัดไป`;
+  $('dateNote').textContent = d.before ? `สั่งก่อน ${cutTxt()} ได้ไข่พรุ่งนี้` : `สั่งตั้งแต่ ${cutTxt()} รับไข่มะรืนนี้`;
 }
 
 /* ===== คำนวณเงิน: ทางเดียวที่ทั้งหน้าจอและ priceOf ใช้ (บาทจำนวนเต็ม → ×100 เป็นสตางค์) =====
@@ -1222,7 +1259,7 @@ function renderCoach(c){
     }
   }
   // 2) มีแผง + เก็บเงินปลายทาง → โอนก่อน (เทียบยอดจริงทั้งก้อน รวมค่าส่ง COD)
-  if (ft > 0 && state.pay === 'COD'){
+  if (ft > 0 && state.pay === 'COD' && CONFIG.promptpay.id){
     const a = priceCart(stateCart(), Object.assign({}, opts, { payment:'PREPAY_TRANSFER' }));
     const save = c.total - a.total;
     if (save > 0){
@@ -1283,7 +1320,7 @@ function renderStep3(){
     .map(r => `<button type="button" class="choice" data-recv="${r[0]}" aria-pressed="${r[2]}">${r[1]}</button>`).join('');
   $('addrBlock').classList.toggle('hidden', pickup);
   $('pickupNote').classList.toggle('hidden', !pickup);
-  renderPin();
+  renderPin(); showGpsMap();
 }
 function setGpsFromNudge(){
   const b = state.gpsBase; if (!b) { state.gps = null; return; }
@@ -1293,7 +1330,7 @@ function setGpsFromNudge(){
 }
 function movedText(){
   const n = state.nudge.n, e = state.nudge.e;
-  if (!n && !e) return 'หมุดอยู่ที่จุดที่ GPS หาได้';
+  if (!n && !e) return state.gpsBase?.accuracyM === null ? 'หมุดอยู่ที่พิกัดที่คุณระบุ' : 'หมุดอยู่ที่จุดที่ GPS หาได้';
   const parts = [];
   if (n) parts.push(`${n > 0 ? '↑' : '↓'}${Math.abs(n)} ม.`);
   if (e) parts.push(`${e > 0 ? '→' : '←'}${Math.abs(e)} ม.`);
@@ -1317,7 +1354,7 @@ function renderPin(){
     <circle cx="${cx}" cy="${cy}" r="9" fill="none" stroke="#1E3A8A" stroke-width="3" stroke-dasharray="4 3"/>
     <g transform="translate(${x} ${y})"><path d="M0 0 C-4 -10 -14 -16 -14 -28 A14 14 0 0 1 14 -28 C14 -16 4 -10 0 0 Z" fill="#B91C1C" stroke="#7F1D1D" stroke-width="1.5"/><circle cx="0" cy="-28" r="5.5" fill="#fff"/></g>`;
   $('pinMoved').textContent = movedText();
-  $('pinCoord').textContent = `พิกัดที่ส่ง ${state.gps.lat.toFixed(6)}, ${state.gps.lng.toFixed(6)}`;
+  $('pinCoord').textContent = `พิกัดที่ส่ง ${state.gps.lat.toFixed(6)}, ${state.gps.lng.toFixed(6)}`; showGpsMap();
 }
 
 /* ===== ขั้น 4 ===== */
@@ -1349,7 +1386,7 @@ function renderStep5(c){
     { code:'PREPAY_TRANSFER', t:'โอนก่อนผ่าน QR พร้อมเพย์', s: allWholesale ? 'ราคาส่งไม่ร่วมลด 2% · ส่งฟรี' : `ลด ${CONFIG.prepayPct}% · ส่งฟรี` },
     { code:'COD', t: zone.pickup ? 'จ่ายเงินสดตอนรับที่ร้าน' : 'จ่ายตอนรับไข่', s: zone.pickup ? 'ไม่มีค่าส่ง' : `+${baht(CONFIG.codFeeBaht)} ค่าส่ง` }
   ];
-  $('pays').innerHTML = pays.map(p => `<button type="button" class="choice" data-pay="${p.code}" aria-pressed="${p.code===state.pay}"><span>${p.t}</span><small>${p.s}</small></button>`).join('');
+  $('pays').innerHTML = pays.filter(p=>CONFIG.promptpay.id || p.code==='COD').map(p => `<button type="button" class="choice" data-pay="${p.code}" aria-pressed="${p.code===state.pay}"><span>${p.t}</span><small>${p.s}</small></button>`).join('');
   const rows = [];
   c.items.forEach(it => rows.push(['', `${itemLabel(it)} × ${it.qty}${unitTxt(it)}`, bahtS(it.lineTotalSatang)]));
   if (c.eggs){
@@ -1379,8 +1416,11 @@ function whyFor(step, c){
     if (!$('custName').value.trim()) why.push('กรอกชื่อผู้รับ');
     if (!phoneOk()) why.push('กรอกเบอร์โทรให้ถูก');
     if (!c.zone.pickup && !$('custAddr').value.trim()) why.push('กรอกที่อยู่');
+    if (!c.zone.pickup && gpsPending) why.push('รอหาตำแหน่ง หรือกดล้างพิกัดเพื่อใช้ที่อยู่แทน');
+    if (!c.zone.pickup && state.gps && !usableGps(state.gps)) why.push('พิกัดอยู่นอกพื้นที่อุบลฯ กรุณาตรวจใหม่หรือล้างพิกัด');
   }
   if (step >= 4 && c.belowMin) why.push(`สั่งขั้นต่ำ ${bahtS(c.zone.minSatang)} (ขาดอีก ${bahtS(c.zone.minSatang - c.goods*100)})`);
+  if (step >= 5 && state.pay==='PREPAY_TRANSFER' && !CONFIG.promptpay.id && !pending) why.push('ขณะนี้รับชำระเมื่อรับไข่ กรุณาเลือกวิธีจ่ายนี้');
   if (step >= 5 && !$('consent').checked) why.push('กรุณาติ๊กยินยอมให้ใช้ข้อมูล');
   return why;
 }
@@ -1428,15 +1468,15 @@ function renderStep7(){
   const tl = [
     ['สั่งแล้ว', sub.atTxt, true],
     sub.pay === 'PREPAY_TRANSFER' ? ['ร้านตรวจยอดโอน', 'หลังได้รับสลิปหรือยอดเข้า', false] : ['ร้านยืนยันออเดอร์', 'ร้านอาจโทรถามถ้าข้อมูลไม่ครบ', false],
-    [`${cutTxt()} ปิดรับออเดอร์`, `แก้ไข/ยกเลิกได้ก่อนเวลานี้ (${sub.editByTxt})`, false],
+    [`${cutTxt()} ปิดรับออเดอร์`, CONFIG.shopPhone ? `แก้ไข/ยกเลิกได้ก่อนเวลานี้ (${sub.editByTxt})` : 'ร้านตรวจรายละเอียดก่อนจัดส่ง', false],
     ['จัดไข่ลงรัง', zone.pickup ? 'คัดและแพ็กตามเบอร์ที่สั่ง ก่อนเวลารับ' : 'คัดและแพ็กตามเบอร์ที่สั่ง ก่อนรถออกส่ง', false],
     zone.pickup ? ['มารับที่ร้าน', `${sub.dateTxt} · ${CONFIG.slots.PICKUP} น.`, false] : ['ส่งถึงบ้าน', `${sub.dateTxt} · ${CONFIG.slotInfo[sub.slot].name} ${CONFIG.slots[sub.slot]} น.`, false]
   ];
   $('okTl').innerHTML = tl.map(t => `<li class="${t[2]?'done':''}"><b>${t[0]}${t[2]?' ✓':''}</b><span>${esc(t[1])}</span></li>`).join('');
-  $('okEditH').textContent = `แก้ไขก่อน ${cutTxt()}`;
-  $('okEdit').textContent = `ถ้าต้องการแก้ไขหรือยกเลิก โทรหาร้านก่อน ${cutTxt()} ${sub.editByTxt} · หน้านี้ยังแก้ไขออเดอร์ที่ส่งแล้วไม่ได้`;
+  $('okEditH').textContent = CONFIG.shopPhone ? `แก้ไขก่อน ${cutTxt()}` : 'เก็บเลขออเดอร์และใบยืนยันไว้';
+  $('okEdit').textContent = CONFIG.shopPhone ? `ถ้าต้องการแก้ไขหรือยกเลิก โทรหาร้านก่อน ${cutTxt()} ${sub.editByTxt} · หน้านี้ยังแก้ไขออเดอร์ที่ส่งแล้วไม่ได้` : 'ร้านยังไม่ได้ระบุเบอร์ติดต่อบนเว็บนี้ และหน้านี้ยังแก้ไขหรือยกเลิกรายการที่ส่งแล้วไม่ได้ โปรดเก็บภาพใบยืนยันและเลขออเดอร์ไว้';
   const ph = CONFIG.shopPhone.replace(/\D/g,'');
-  $('shopCall').innerHTML = ph ? `<a class="shopcall" href="tel:${ph}">📞 โทรหาร้าน ${esc(CONFIG.shopPhone)}</a>` : `<div class="shopcall">📞 โทรหาร้าน [เบอร์ร้าน]</div>`;
+  $('shopCall').innerHTML = ph ? `<a class="shopcall" href="tel:${ph}">📞 โทรหาร้าน ${esc(CONFIG.shopPhone)}</a>` : `<div class="shopcall">ยังไม่ได้ระบุเบอร์ติดต่อร้าน</div>`;
   $('btnBackPay').classList.toggle('hidden', sub.pay !== 'PREPAY_TRANSFER');
 }
 
@@ -1503,7 +1543,7 @@ document.addEventListener('click', e => {
   }
   let sel = null;
   if (d.recv){
-    if (d.recv === 'pickup'){ if (state.zone !== 'PU') state.prevZone = state.zone; state.zone = 'PU'; }
+    if (d.recv === 'pickup'){ cancelGpsRequest(); if (state.zone !== 'PU') state.prevZone = state.zone; state.zone = 'PU'; }
     else if (state.zone === 'PU') state.zone = state.prevZone || 'WRN';
     sel = `[data-recv="${d.recv}"]`;
   }
@@ -1545,9 +1585,10 @@ $('btnNew').onclick = () => withRecoveryLock(() => {
     }
   } catch(e){ storageFailure(); return; }
   Object.keys(state.cart).forEach(k => state.cart[k] = 0);
-  state.swap = 0; state.pay = 'PREPAY_TRANSFER'; state.submitted = null;
+  state.swap = 0; state.pay = CONFIG.promptpay.id ? 'PREPAY_TRANSFER' : 'COD'; state.submitted = null;
   pending = null; lastSent = null; pendingRejected = false; pendingMessage = '';
-  state.gps = null; state.gpsBase = null; state.nudge = {n:0,e:0};
+  cancelGpsRequest(); state.gps = null; state.gpsBase = null; state.nudge = {n:0,e:0};
+  $('researchConsent').checked=false;$('researchBuyer').value='';$('researchQuestions').hidden=true;$('manualGps').value='';
   ['custName','custPhone','custAddr','slip'].forEach(id => $(id).value = '');
   $('consent').checked = false; $('slipName').classList.add('hidden');
   recoveryBlocked = false; $('recoveryNotice').hidden = true;
@@ -1562,24 +1603,46 @@ window.addEventListener('popstate', e => {
 });
 
 /* GPS: ใช้ตำแหน่งจริงจากเครื่อง (ไม่บังคับ) · ขยับหมุดทีละ 10 ม. แปลงเป็นองศา (1° lat ≈ 111,320 ม. · lng คูณ cos(lat)) */
+$('researchConsent').addEventListener('change',()=>{
+  $('researchQuestions').hidden=!$('researchConsent').checked;
+  if(!$('researchConsent').checked)$('researchBuyer').value='';
+});
 $('btnGps').onclick = () => {
-  const msg = $('gpsMsg'), btn = $('btnGps');
-  msg.className = 'note';
-  if (!('geolocation' in navigator)){ msg.className='err'; msg.textContent='เครื่องนี้หาตำแหน่งไม่ได้ กรุณากรอกที่อยู่แทน'; return; }
-  btn.disabled = true; msg.textContent = 'กำลังหาตำแหน่ง… (ต้องกดอนุญาต)';
-  navigator.geolocation.getCurrentPosition(pos => {
-    const { latitude, longitude, accuracy } = pos.coords;
-    state.gpsBase = { lat:+latitude.toFixed(6), lng:+longitude.toFixed(6), accuracyM: Math.round(accuracy) };
-    state.nudge = { n:0, e:0 };
-    setGpsFromNudge();
-    msg.className = 'okmsg'; msg.textContent = `ได้ตำแหน่งแล้ว (คลาดเคลื่อนประมาณ ${state.gpsBase.accuracyM} ม.)`;
-    btn.textContent = '📍 หาตำแหน่งใหม่'; btn.disabled = false;
-    renderAll();
-  }, err => {
-    state.gps = null; state.gpsBase = null; state.nudge = { n:0, e:0 }; btn.disabled = false; msg.className = 'err';
-    msg.textContent = err.code===1 ? 'ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง กรอกที่อยู่แทนได้' : 'หาตำแหน่งไม่สำเร็จ ลองใหม่หรือกรอกที่อยู่แทน';
-    renderAll();
-  }, { enableHighAccuracy:true, timeout:15000, maximumAge:60000 });
+  if(pending||state.submitted||state.sending)return;
+  const msg=$('gpsMsg'),btn=$('btnGps');
+  if(!navigator.geolocation){msg.className='err';msg.textContent='เครื่องนี้หาตำแหน่งไม่ได้ กรอกที่อยู่หรือวางพิกัดจากแผนที่แทนได้';return;}
+  cancelGpsRequest();const request=gpsRequest;gpsPending=true;
+  state.gps=null;state.gpsBase=null;state.nudge={n:0,e:0};
+  msg.className='note';msg.textContent='กำลังหาตำแหน่งจริง… โปรดกดอนุญาตบนมือถือ';renderAll();btn.disabled=true;
+  navigator.geolocation.getCurrentPosition(pos=>{
+    if(request!==gpsRequest||pending||state.submitted||state.sending)return;
+    gpsPending=false;btn.disabled=false;
+    if(curZone().pickup){renderAll();return;}
+    const {latitude,longitude,accuracy}=pos.coords;
+    const g={lat:+latitude.toFixed(6),lng:+longitude.toFixed(6),accuracyM:Math.round(accuracy)};
+    if(!usableGps(g)||!Number.isFinite(accuracy)||accuracy<0){
+      msg.className='err';msg.textContent='พิกัดที่ได้อยู่นอกพื้นที่อุบลฯ หรือหาตำแหน่งไม่สมบูรณ์ กรอกที่อยู่หรือวางพิกัดจากแผนที่แทน';renderAll();return;
+    }
+    applyGpsPoint(g,'ได้ตำแหน่งจริงแล้ว คลาดเคลื่อนประมาณ '+g.accuracyM+' เมตร · เปิดแผนที่ตรวจจุดรับไข่ก่อนยืนยัน');
+    btn.textContent='📍 หาตำแหน่งใหม่';
+  },err=>{
+    if(request!==gpsRequest||pending||state.submitted||state.sending)return;
+    gpsPending=false;btn.disabled=false;state.gps=null;state.gpsBase=null;
+    msg.className='err';msg.textContent=err.code===1?'ยังไม่ได้อนุญาตตำแหน่ง กรอกที่อยู่หรือวางพิกัดจากแผนที่แทนได้':'หาตำแหน่งไม่สำเร็จ ลองใหม่ หรือกรอกที่อยู่และจุดสังเกตแทน';renderAll();
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+};
+$('btnClearGps').onclick=()=>{
+  if(pending||state.submitted||state.sending)return;
+  cancelGpsRequest();state.gps=null;state.gpsBase=null;state.nudge={n:0,e:0};$('manualGps').value='';
+  $('gpsMsg').className='note';$('gpsMsg').textContent='ไม่ได้แนบพิกัด ใช้ที่อยู่และจุดสังเกตที่กรอก';renderAll();
+};
+$('btnUseManualGps').onclick=()=>{
+  if(pending||state.submitted||state.sending)return;
+  const parts=$('manualGps').value.trim().split(/\s*,\s*/);
+  const valid=parts.length===2&&parts.every(x=>/^-?\d+(?:\.\d+)?$/.test(x));
+  const g=valid?{lat:+Number(parts[0]).toFixed(6),lng:+Number(parts[1]).toFixed(6),accuracyM:null}:null;
+  if(!usableGps(g)){$('gpsMsg').className='err';$('gpsMsg').textContent='กรอกพิกัดตัวเลข 2 ค่า คั่นด้วยจุลภาค และเลือกจุดรับไข่ในพื้นที่อุบลฯ';return;}
+  cancelGpsRequest();applyGpsPoint(g,'ใช้พิกัดที่คุณระบุแล้ว · ไม่ทราบค่าความคลาดเคลื่อน โปรดเปิดแผนที่ตรวจจุดรับไข่');
 };
 
 /* แนบสลิป: ฉบับนี้แสดงชื่อไฟล์เท่านั้น ไม่อ่าน ไม่อัปโหลด ไม่เก็บรูป */
@@ -1617,6 +1680,7 @@ function buildPayload(c){
     trays: c.trays,
     pricing: c.pricing,
     payment:{ method:state.pay, status:'PENDING', slipAssetId:null },
+    research:researchSnapshot(),
     notes:null
   };
 }
@@ -1758,9 +1822,13 @@ function restoreRecovery(r){
   state.zone = o.delivery.zoneCode; state.prevZone = state.zone === 'PU' ? 'WRN' : state.zone;
   state.slot = o.delivery.slot || 'PICKUP'; state.pay = o.payment.method;
   state.swap = o.trays.ppTraysReturned;
-  state.gps = o.delivery.gps; state.gpsBase = null; state.nudge = {n:0,e:0};
+  state.gps = o.delivery.gps; state.gpsBase = o.delivery.gps ? Object.assign({},o.delivery.gps) : null; state.nudge = {n:0,e:0};
   $('custName').value = o.customer.name; $('custPhone').value = o.customer.phone;
   $('custAddr').value = o.delivery.address || ''; $('consent').checked = true;
+  cancelGpsRequest();
+  $('researchConsent').checked=o.research?.consent===true;
+  $('researchBuyer').value=o.research?.buyerType||'';
+  $('researchQuestions').hidden=!$('researchConsent').checked;
   state.sending = false; state.submitted = null;
   pending = r.view; pendingRejected = r.status === 'rejected';
   pendingMessage = pendingRejected
@@ -1895,7 +1963,7 @@ async function sendOrderRequest(){
     const res = await fetch(CONFIG.pipeline.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(cur), signal: ctrl.signal, redirect:'follow' });
     const data = await res.json().catch(e => { if (e.name === 'AbortError') throw e; return null; });
     // ระบบหลังบ้านตอบ duplicate:true เมื่อได้ idempotency_key ซ้ำ = ออเดอร์นี้บันทึกไว้แล้ว ถือว่าสำเร็จ
-    if (res.ok && data && data.ok === false && data.retryable === false){
+    if (res.ok && data && data.ok === false && data.duplicate !== true && data.retryable === false){
       pendingRejected = true;
       pendingMessage = /ราคา|price|version/i.test(String(data.error || ''))
         ? 'ร้านยังไม่รับรายการนี้ เพราะราคาไม่ตรง กรุณาปิดกล่องแล้วทบทวนรายการ หรือเปิดหน้าเว็บล่าสุดก่อนยืนยันใหม่'
@@ -1904,7 +1972,7 @@ async function sendOrderRequest(){
       status.textContent = pendingMessage;
       return { ok:false, reason:'rejected' };
     }
-    if (!res.ok || !data || (data.ok !== true && data.duplicate !== true)) throw new Error('Unconfirmed response');
+    if (!res.ok || !data || data.ok !== true || typeof data.order_id !== 'string' || data.order_id !== cur.order_id) throw new Error('Unconfirmed order acknowledgement');
     if (data.order_id && data.order_id !== cur.order_id) throw new Error('Mismatched order identity');
     ok = true;
     clearTimeout(t); state.sending = false; $('closeDone').disabled = false;
