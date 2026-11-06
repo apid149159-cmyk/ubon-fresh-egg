@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>อุบลเฟรชเอ้ก · สั่งไข่</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+<!--
+  v6 · ทีมหน้าตาและการใช้งาน · 5 พ.ย. 2569 (มติเจ้าของ: อนุมัติ flow จากแคนวาสต้นแบบ 8 หน้าจอ)
+  หน้าเดียว แบ่งเป็นขั้น (state เดียวกันทั้งหน้า) · ขั้น 1 เลือกเบอร์ › 2 จำนวนและราคา › 3 ที่อยู่ + GPS › 4 วันและรอบส่ง
+  › 5 ตรวจและยืนยัน › 6 โอนผ่าน QR พร้อมเพย์ (เฉพาะโอนก่อน) › 7 สั่งสำเร็จ · ปุ่มย้อนกลับไม่ทำข้อมูลหาย
+  ขายไข่ไก่เบอร์ 0–5 (มกษ. 6702-2553) ยกแผง 30 ฟองทุกเบอร์ · แพ็กเล็ก 15/10/8 ฟองเฉพาะเบอร์ 2 · ตารางราคา 2026-11-05-v5
+  หลักการเงิน: บาทจำนวนเต็ม แล้วคูณ 100 เป็นสตางค์ตอนส่ง payload (ต้องตรงกับ backend/eggfresh_backend.js ทุกบาท)
+  ภาพทั้งหมดวาดด้วย SVG/CSS ในไฟล์นี้ ไม่มีไฟล์รูป ไม่มีแผนที่จากภายนอก · ห้ามเพิ่มคำโฆษณาเรื่องเกรด อุณหภูมิ หรือสุขภาพ
+  ไอติม ชวนคุ้ม: ทุกตัวเลขคำนวณจาก priceCart · ห้ามเร่งด้วยของใกล้หมด/นับถอยหลังปลอม
+  ลำดับข้อความ: เปลี่ยนเป็นแผง > โอนก่อน > ขั้นราคาถัดไป > คืนรังไข่ > เคล็ดลับ
+  QR พร้อมเพย์: ตัวเข้ารหัส QR คัดลอกจาก ubon-qr-poster.html · ถ้ายังไม่มีโมดูล PromptPay หรือยังไม่ตั้งเลขพร้อมเพย์ร้าน
+  จะแสดงกล่อง [QR พร้อมเพย์ร้าน] เท่านั้น ห้ามวาด QR จ่ายเงินปลอม
+  PDPA: เก็บข้อมูลไม่เกิน 1 ปีหลังออเดอร์ล่าสุด แล้วลบชื่อ เบอร์ ที่อยู่ และพิกัด
+  v7 · 6 พ.ย. 2569 (มติเจ้าของ): ปิดรับออเดอร์ 22:00 (เวลาไทย) · ส่ง 3 รอบเลี่ยงรถติด ตามสัญญากับทีม backend
+  MORNING รอบเช้าตรู่ 05:30–07:00 · LATE รอบสาย 09:30–11:30 · AFTERNOON รอบบ่าย 13:00–15:00 · PICKUP 08:00–17:00 (payload slot = null)
+  WRN/UBN → เช้าตรู่ สาย บ่าย · DKY → สาย บ่าย · PU → รับเอง · ก่อน 22:00 ส่งพรุ่งนี้ · ตั้งแต่ 22:00 ส่งมะรืนนี้
+-->
+<style>
+:root{
+  --bg:#FFF7ED; --card:#FFFFFF; --ink:#1F2937; --muted:#374151; --line:#F1D9C2;
+  --brand:#C2410C; --brand-deep:#9A3412; --brand-darker:#7C2D12; --brand-ink:#FFFFFF; --brand-soft:#FFEDD5;
+  --ok:#166534; --info-bg:#E0F2FE; --info-ink:#1E3A8A; --warn-bg:#FEF3C7; --warn-ink:#78350F; --err:#991B1B;
+}
+*{box-sizing:border-box}
+html{font-size:18px}
+body{margin:0;font-family:'Prompt',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;padding-bottom:180px;-webkit-tap-highlight-color:transparent;overflow-wrap:anywhere}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid #1D4ED8;outline-offset:2px}
+h2[tabindex="-1"]:focus{outline:none}
+h2[tabindex="-1"]:focus-visible{outline:3px solid #1D4ED8;outline-offset:4px;border-radius:6px}
+.wrap{max-width:480px;margin:0 auto;padding:0 16px}
+.sample{background:var(--warn-bg);color:var(--warn-ink);text-align:center;font-size:16px;padding:6px 12px}
+svg{display:block}
+.defs{position:absolute;width:0;height:0;overflow:hidden}
+.sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+[hidden]{display:none!important}
+.hidden{display:none!important}
+
+/* ===== หัว ===== */
+header{background:linear-gradient(160deg,var(--brand-deep) 0%,var(--brand-darker) 100%);color:var(--brand-ink);padding:10px 0 12px;border-radius:0 0 22px 22px;position:relative;overflow:hidden}
+.hero{display:grid;grid-template-columns:1fr 92px;gap:8px;align-items:center}
+header h1{margin:0;font-size:24px;line-height:1.15;font-weight:700}
+header h1 .en{display:block;font-size:16px;font-weight:600;letter-spacing:.04em;margin-top:2px}
+.tag{margin:4px 0 0;font-size:16px}
+.basket{width:92px;height:auto}
+.cut{margin-top:8px;font-size:16px;background:rgba(0,0,0,.22);border-radius:12px;padding:6px 12px}
+.cut b{font-variant-numeric:tabular-nums}
+
+/* ===== แถบขั้นตอน ===== */
+.prog{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding-top:12px}
+.back{min-height:56px;min-width:56px;padding:0 14px;border-radius:14px;border:2px solid var(--brand-darker);background:#fff;color:var(--brand-darker);font-weight:700;font-size:17px}
+.back[hidden]{display:none!important}
+.prog .txt{font-size:17px;font-weight:700;color:var(--brand-darker);line-height:1.3}
+.prog .txt span{display:block;font-weight:600;color:var(--muted);font-size:16px}
+.track{grid-column:1/-1;height:10px;border-radius:999px;background:#F3D7BD;overflow:hidden}
+.track i{display:block;height:100%;background:var(--brand-deep);border-radius:999px;transition:width .25s}
+.cartchip{margin:10px 0 0;font-size:16px;font-weight:600;background:#fff;border:2px solid #FDBA74;color:var(--brand-darker);border-radius:14px;padding:8px 12px}
+
+main{padding-top:14px}
+.step{display:flex;flex-direction:column;gap:16px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+h2{margin:0;font-size:22px;line-height:1.3}
+h3{margin:0 0 6px;font-size:19px;line-height:1.3}
+.lead{margin:-8px 0 0;font-size:17px;color:var(--muted)}
+
+/* ===== ขั้น 1 เลือกเบอร์ ===== */
+.sizes{display:grid;gap:10px}
+.sizecard{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;width:100%;min-height:80px;padding:10px 14px;border-radius:16px;border:2px solid var(--line);background:#fff;text-align:left}
+.sizecard:hover{border-color:#FDBA74}
+.sizecard.has{border:3px solid var(--brand-deep);background:var(--brand-soft)}
+.sizecard .egg{width:44px;height:56px;margin:0 auto}
+.sc-main{display:flex;flex-direction:column;min-width:0}
+.sc-name{font-size:21px;font-weight:700;line-height:1.2}
+.sc-w{font-size:16px;color:var(--muted)}
+.sc-x{font-size:16px;color:var(--brand-darker);font-weight:600}
+.incart{font-size:16px;font-weight:700;color:var(--ok)}
+.sc-price{text-align:right;font-size:22px;font-weight:700;color:var(--brand-deep);line-height:1.15;white-space:nowrap}
+.sc-price small{display:block;font-size:16px;font-weight:600;color:var(--muted)}
+.hint{margin:0;font-size:16px;color:var(--muted)}
+
+/* ===== ขั้น 2 จำนวนและราคา ===== */
+.chip{display:inline-block;font-size:17px;font-weight:700;padding:4px 12px;border-radius:999px;background:var(--brand-soft);color:var(--brand-darker);border:2px solid #FDBA74}
+.size-line{display:flex;flex-wrap:wrap;gap:8px}
+.item{display:grid;grid-template-columns:76px 1fr;gap:14px;align-items:center}
+.item.trayitem{grid-template-columns:1fr}
+.trayart{width:100%;max-width:280px;height:auto;margin:0 auto 4px}
+.packart{width:76px;height:auto}
+.price{font-size:22px;font-weight:700;color:var(--brand-deep)}
+.price small{font-size:16px;font-weight:600;color:var(--muted)}
+.sub{font-size:16px;color:var(--muted)}
+.tagline{font-size:16px;color:var(--brand-darker);font-weight:600}
+.tiers{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tiers li{border:2px solid var(--line);border-radius:12px;padding:6px 4px;text-align:center;font-size:16px;line-height:1.3;background:#fff;color:var(--ink)}
+.tiers li b{display:block;font-size:19px}
+.tiers li[aria-current="true"]{background:var(--brand-deep);border-color:var(--brand-deep);color:#fff}
+.tiers li .now{display:block;font-size:16px;font-weight:600}
+.nudge{margin:8px 0 0;font-size:16px;font-weight:600;color:var(--brand-darker);background:var(--brand-soft);border-radius:10px;padding:6px 10px}
+.stepper{display:grid;grid-template-columns:56px 1fr 56px;gap:8px;align-items:center;margin-top:10px;grid-column:1/-1}
+.stepper button{height:56px;border-radius:14px;border:2px solid var(--brand-deep);background:#fff;color:var(--brand-deep);font-size:28px;font-weight:700}
+.stepper button.plus{background:var(--brand-deep);color:var(--brand-ink)}
+.stepper button:disabled{opacity:.45;cursor:not-allowed}
+.stepper output{text-align:center;font-size:24px;font-weight:700}
+.packnote{margin:0;font-size:17px;font-weight:600;color:var(--warn-ink);background:var(--warn-bg);border-radius:14px;padding:12px 14px}
+.cartlist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.cartlist li{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:17px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.cartlist li:last-child{border-bottom:0;padding-bottom:0}
+.cartlist .amt{font-weight:700;white-space:nowrap}
+.btn2{min-height:56px;padding:0 16px;border-radius:14px;border:2px solid var(--brand-darker);background:#fff;color:var(--brand-darker);font-weight:700;font-size:17px}
+.btn2.wide{width:100%}
+.btn2.small{min-height:56px;min-width:64px;padding:0 12px;font-size:16px;flex:none}
+
+/* ===== ไอติม ชวนคุ้ม ===== */
+.coach{background:#FFF4E6;color:var(--brand-darker);border:2px solid #FDBA74;border-radius:18px;padding:12px 14px 14px;display:grid;grid-template-columns:68px 1fr;gap:12px;align-items:start;position:relative}
+.coach .av{width:68px;height:auto}
+.coach .hd{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:2px}
+.coach .hd b{font-size:18px;color:var(--brand-darker)}
+.coach .osusume{font-size:16px;line-height:1.2;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--brand-deep);color:#fff;font-family:'Noto Sans JP','Noto Sans CJK JP','Hiragino Sans','Yu Gothic',sans-serif;letter-spacing:.04em}
+.coach p{margin:4px 0 0;font-size:17px;color:#431407}
+.coach button{grid-column:1/-1;margin-top:2px;min-height:56px;width:100%;padding:0 16px;border-radius:14px;border:2px solid var(--brand-darker);background:#fff;color:var(--brand-darker);font-weight:700;font-size:17px}
+
+/* ===== ฟอร์ม ===== */
+label{display:block;font-weight:600;font-size:17px;margin:12px 0 6px}
+label:first-child{margin-top:0}
+input[type=text],input[type=tel],textarea{width:100%;min-height:56px;border:2px solid #9C8A7A;border-radius:12px;padding:10px 12px;font-size:18px;background:#fff}
+textarea{min-height:84px;resize:vertical}
+.choices{display:grid;gap:8px}
+.choices.two{grid-template-columns:1fr 1fr}
+.choice{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:56px;padding:8px 14px;border-radius:12px;border:2px solid var(--line);background:#fff;text-align:left;font-size:17px}
+.choices.two .choice{justify-content:center;text-align:center;font-weight:600}
+.choice[aria-pressed="true"]{border:3px solid var(--brand-deep);background:var(--brand-soft)}
+.choice small{font-size:16px;color:var(--muted);text-align:right}
+/* v7 รอบส่ง: เรียงแนวตั้ง ปุ่มละแถว (อ่านง่ายกว่า 3 คอลัมน์ที่ 360px) · บรรทัด 1 ชื่อรอบ + เวลา · บรรทัด 2 เหตุผล */
+#slots .choice{flex-direction:column;align-items:flex-start;justify-content:center;gap:0;padding:8px 14px}
+#slots .choice span{font-weight:600;font-size:17px}
+#slots .choice small{text-align:left}
+.gps{width:100%;min-height:56px;margin-top:10px;border-radius:12px;border:2px solid #1E40AF;background:#fff;color:#1E40AF;font-weight:700}
+.note{font-size:16px;color:var(--muted);margin:6px 0 0}
+.err{color:var(--err);font-size:16px;margin:6px 0 0;font-weight:600}
+.okmsg{color:var(--ok);font-size:16px;margin:6px 0 0;font-weight:600}
+.lbl-h{font-weight:600;font-size:17px;margin:14px 0 6px}
+
+/* GPS: กล่องหมุดแบบแผนผัง (ไม่ใช้แผนที่ภายนอก) + ปุ่มลูกศร */
+.pinwrap{margin-top:12px;border:2px solid #93C5FD;border-radius:16px;padding:12px;background:#F8FBFF}
+.pinbox{width:100%;max-width:320px;height:auto;margin:0 auto;border-radius:12px}
+.pad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);gap:8px;justify-content:center;margin-top:10px}
+.pad button{border-radius:14px;border:2px solid #1E40AF;background:#fff;color:#1E40AF;font-size:28px;font-weight:700;min-height:56px}
+.pad .up{grid-column:2;grid-row:1}.pad .lf{grid-column:1;grid-row:2}.pad .rt{grid-column:3;grid-row:2}.pad .dn{grid-column:2;grid-row:3}
+.pad .ct{grid-column:2;grid-row:2;font-size:16px;line-height:1.15;padding:0 2px;color:#1E3A8A;border-color:#93C5FD}
+.moved{margin:10px 0 0;text-align:center;font-size:18px;font-weight:700;color:#1E3A8A}
+.coord{margin:2px 0 0;text-align:center;font-size:16px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* ===== ขั้น 4 ===== */
+.datecard{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;background:var(--brand-deep);color:#fff;border-radius:18px;padding:14px 16px}
+.datecard .cal{width:64px;height:auto}
+.datecard .big{font-size:22px;font-weight:700;line-height:1.25}
+.datecard .sm{font-size:16px}
+.minwarn{margin:10px 0 0;font-size:17px;font-weight:600;color:var(--err);background:#FEF2F2;border:2px solid #FCA5A5;border-radius:14px;padding:10px 12px}
+
+/* ===== ขั้น 5 ===== */
+.sumcard{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:start}
+.sumcard h3{margin:0}
+.sumcard .body{grid-column:1/-1;font-size:17px}
+.sumcard .body p{margin:2px 0}
+.sumcard ul{margin:0;padding-left:20px}
+.edit{min-height:56px;padding:0 16px;border-radius:14px;border:2px solid var(--brand-darker);background:#fff;color:var(--brand-darker);font-weight:700;font-size:17px}
+.consent{display:flex;gap:12px;align-items:center;font-weight:600;font-size:17px;min-height:56px;padding:8px 12px;border:2px solid var(--line);border-radius:14px;background:#fff;margin-top:14px;cursor:pointer}
+.consent:has(input:checked){border-color:var(--ok);background:#F0FDF4}
+.consent input{width:28px;height:28px;flex:none;accent-color:var(--brand-deep)}
+table.sum{width:100%;border-collapse:collapse;font-size:17px}
+table.sum td{padding:4px 0;vertical-align:top}
+table.sum td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px}
+table.sum tr.sep td{border-top:1px solid var(--line);padding-top:6px}
+table.sum tr.total td{border-top:2px dashed #E7B98E;padding-top:8px;font-size:21px;font-weight:700}
+
+/* ===== ขั้น 6 ===== */
+.payamt{text-align:center}
+.payamt .big{font-size:34px;font-weight:700;color:var(--brand-deep);line-height:1.2}
+.payamt .oid{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.qrbox{display:flex;align-items:center;justify-content:center;margin:12px auto 0;width:100%;max-width:280px;aspect-ratio:1/1;border-radius:16px;background:#fff;border:2px solid var(--ink);padding:8px}
+.qrbox svg{width:100%;height:auto}
+.qrbox.ph{border:3px dashed #6B7280;background:#F3F4F6;flex-direction:column;gap:8px;text-align:center;padding:16px}
+.qrbox.ph b{font-size:20px;color:var(--ink)}
+.qrbox.ph span{font-size:16px;color:var(--muted)}
+.howto{margin:0;padding:0;list-style:none;counter-reset:h;display:grid;gap:12px}
+.howto li{counter-increment:h;display:grid;grid-template-columns:40px 1fr;gap:10px;align-items:start;font-size:17px}
+.howto li::before{content:counter(h);width:40px;height:40px;border-radius:50%;background:var(--brand-deep);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:18px}
+.howto .act{grid-column:2}
+.filebtn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;margin:6px 0 0;padding:0 16px;border-radius:14px;border:2px solid var(--brand-darker);background:#fff;color:var(--brand-darker);font-weight:700;font-size:17px;cursor:pointer}
+.filebtn:focus-within{outline:3px solid #1D4ED8;outline-offset:2px}
+
+/* ===== ขั้น 7 ===== */
+.okhead{display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:center}
+.okhead svg{width:56px;height:56px}
+.preview{margin:0;font-size:17px;font-weight:600;color:var(--warn-ink);background:var(--warn-bg);border-radius:14px;padding:10px 12px}
+.tl{list-style:none;margin:0;padding:0}
+.tl li{position:relative;padding:0 0 14px 36px;font-size:17px}
+.tl li::before{content:"";position:absolute;left:6px;top:6px;width:16px;height:16px;border-radius:50%;border:3px solid #9CA3AF;background:#fff}
+.tl li::after{content:"";position:absolute;left:13px;top:26px;bottom:2px;width:3px;background:#E5E7EB}
+.tl li:last-child::after{display:none}
+.tl li.done::before{background:var(--ok);border-color:var(--ok)}
+.tl li b{display:block}
+.tl li span{color:var(--muted);font-size:16px}
+.shopcall{display:flex;align-items:center;justify-content:center;min-height:56px;border-radius:14px;border:2px dashed #6B7280;background:#F3F4F6;font-size:18px;font-weight:700;color:var(--ink);text-decoration:none;margin-top:10px}
+a.shopcall{border-style:solid;border-color:var(--ok);background:#F0FDF4;color:var(--ok)}
+
+/* ===== แถบล่าง ===== */
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:3px solid var(--brand);box-shadow:0 -8px 16px rgba(0,0,0,.08);z-index:10}
+.bar .wrap{display:flex;align-items:center;gap:10px;padding-top:10px;padding-bottom:12px}
+.bar .info{min-width:0;flex:1}
+.bar .lbl{font-size:16px;color:var(--muted)}
+.bar .amt{font-size:26px;font-weight:700;line-height:1.1}
+.bar button{flex:none;max-width:58%;min-height:60px;padding:6px 16px;border:0;border-radius:16px;background:var(--brand-deep);color:var(--brand-ink);font-weight:700;font-size:19px;line-height:1.2}
+.bar button:disabled{background:#9CA3AF;color:#111827;cursor:not-allowed}
+.bar .why{font-size:16px;color:var(--err);font-weight:600}
+dialog{border:0;border-radius:18px;padding:20px;max-width:440px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog h2{font-size:20px}
+dialog p{font-size:17px}
+dialog button{min-height:56px;width:100%;border-radius:14px;border:0;background:var(--brand-deep);color:var(--brand-ink);font-weight:700;font-size:18px;margin-top:10px}
+</style>
+</head>
+<body>
+<!-- สีเปลือกไข่ + ลายหวาย ใช้ร่วมกันทุกภาพ -->
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <radialGradient id="eggShell" cx="36%" cy="28%" r="78%">
+      <stop offset="0" stop-color="#F7E3CC"/>
+      <stop offset=".32" stop-color="#E8BF97"/>
+      <stop offset=".7" stop-color="#D49A6A"/>
+      <stop offset="1" stop-color="#B4794C"/>
+    </radialGradient>
+    <pattern id="weave" width="14" height="10" patternUnits="userSpaceOnUse">
+      <rect width="14" height="10" fill="#9A6526"/>
+      <rect x="1" y="1" width="12" height="3.4" rx="1.7" fill="#D9A55A"/>
+      <rect x="-6" y="5.6" width="12" height="3.4" rx="1.7" fill="#C38A3E"/>
+      <rect x="8" y="5.6" width="12" height="3.4" rx="1.7" fill="#C38A3E"/>
+    </pattern>
+    <pattern id="rim" width="8" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+      <rect width="8" height="14" fill="#A86F2A"/>
+      <rect width="4" height="14" fill="#D29B4F"/>
+    </pattern>
+    <linearGradient id="basketShade" x1="0" x2="1">
+      <stop offset="0" stop-color="#000" stop-opacity=".28"/>
+      <stop offset=".45" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".32"/>
+    </linearGradient>
+    <linearGradient id="trayBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2B2B2B"/>
+      <stop offset="1" stop-color="#0E0E0E"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="sample" role="note" id="sampleBanner">หน้าตัวอย่าง · ยังไม่รับออเดอร์จริง</div>
+
+<header>
+  <div class="wrap hero">
+    <div>
+      <h1>อุบลเฟรชเอ้ก<span class="en" lang="en">Ubon Fresh Egg</span></h1>
+      <p class="tag">ไข่ไก่สด เบอร์ 0–5 ส่งถึงบ้านในอุบลฯ</p>
+    </div>
+    <!-- ตะกร้าหวายใส่ไข่สีน้ำตาล -->
+    <svg class="basket" viewBox="0 0 160 124" role="img" aria-label="ตะกร้าหวายใส่ไข่ไก่สีน้ำตาล">
+      <path d="M30 66 C30 8 130 8 130 66" fill="none" stroke="#6B4518" stroke-width="10" stroke-linecap="round"/>
+      <path d="M30 66 C30 8 130 8 130 66" fill="none" stroke="#D29B4F" stroke-width="5" stroke-linecap="round" stroke-dasharray="7 5"/>
+      <g stroke="#9A6A3E" stroke-width=".8">
+        <ellipse cx="50" cy="56" rx="15" ry="19" fill="url(#eggShell)" transform="rotate(-14 50 56)"/>
+        <ellipse cx="110" cy="56" rx="15" ry="19" fill="url(#eggShell)" transform="rotate(14 110 56)"/>
+        <ellipse cx="80" cy="50" rx="16" ry="21" fill="url(#eggShell)"/>
+        <ellipse cx="64" cy="62" rx="15" ry="19" fill="url(#eggShell)" transform="rotate(-6 64 62)"/>
+        <ellipse cx="96" cy="62" rx="15" ry="19" fill="url(#eggShell)" transform="rotate(8 96 62)"/>
+      </g>
+      <path d="M20 72 H140 L128 116 Q127 120 122 120 H38 Q33 120 32 116 Z" fill="url(#weave)"/>
+      <path d="M20 72 H140 L128 116 Q127 120 122 120 H38 Q33 120 32 116 Z" fill="url(#basketShade)"/>
+      <rect x="12" y="64" width="136" height="14" rx="7" fill="url(#rim)" stroke="#6B4518" stroke-width="1.5"/>
+      <rect x="40" y="117" width="80" height="5" rx="2.5" fill="#6B4518"/>
+    </svg>
+  </div>
+  <div class="wrap">
+    <div class="cut" id="cutoff" aria-live="polite">กำลังคำนวณเวลาตัดรอบ…</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="prog">
+    <button type="button" class="back" id="btnBack" hidden>‹ ย้อนกลับ</button>
+    <div class="txt" id="progTxt">ขั้น 1/6<span>เลือกเบอร์ไข่</span></div>
+    <div class="track" role="progressbar" aria-labelledby="progTxt" aria-valuemin="1" aria-valuemax="6" aria-valuenow="1" id="progBar"><i id="progFill" style="width:16.7%"></i></div>
+  </div>
+  <p class="cartchip" id="cartChip" role="status"></p>
+</div>
+
+<main class="wrap">
+  <!-- ===== ขั้น 1 เลือกเบอร์ ===== -->
+  <section class="step" id="step1" data-step="1" aria-labelledby="hStep1">
+    <h2 id="hStep1" tabindex="-1">เลือกเบอร์ไข่</h2>
+    <p class="lead">แตะเบอร์ที่ต้องการ ใส่หลายเบอร์ในออเดอร์เดียวได้ · น้ำหนักตาม มกษ. 6702-2553</p>
+    <div class="sizes" id="sizeList"></div>
+    <p class="hint">ราคาแผงลดตามจำนวนแผงรวมทุกเบอร์: 5–9 แผง ถูกลง · 10 แผงขึ้นไป ได้ราคาส่ง (ร้านอาหารสั่งได้เลย)</p>
+  </section>
+
+  <!-- ===== ขั้น 2 จำนวนและราคา ===== -->
+  <section class="step" id="step2" data-step="2" aria-labelledby="hStep2" hidden>
+    <h2 id="hStep2" tabindex="-1">จำนวนและราคา</h2>
+    <div class="size-line" id="sizeLine"></div>
+    <div id="trayCard"></div>
+    <div id="packArea"></div>
+
+    <section class="coach" id="coach" aria-live="polite" aria-labelledby="coachName">
+      <!-- ไอติม: เด็กหญิงชุดฮัปปิสีส้ม คาดผ้าฮาจิมากิสีขาวมีลายไข่ ถือพัดอุจิวะลายไข่ (ออกแบบใหม่ของร้าน) -->
+      <svg class="av" viewBox="0 0 124 136" aria-hidden="true" focusable="false">
+        <path d="M24 56 C22 24 40 12 60 12 C82 12 98 26 96 56 L97 80 Q92 86 86 82 L84 66 L36 66 L34 82 Q28 86 23 80 Z" fill="#4A2C17"/>
+        <path d="M30 132 L34 98 Q38 88 60 86 Q82 88 86 98 L90 132 Z" fill="#EA7A28"/>
+        <g fill="#FFE8D0" opacity=".9">
+          <ellipse cx="40" cy="112" rx="2.6" ry="3.3"/><ellipse cx="80" cy="110" rx="2.6" ry="3.3"/>
+          <ellipse cx="38" cy="126" rx="2.6" ry="3.3"/><ellipse cx="82" cy="125" rx="2.6" ry="3.3"/>
+        </g>
+        <path d="M52 87 L60 100 L68 87 Z" fill="#FFFFFF"/>
+        <path d="M50 87 L58 101 L57 132 M70 87 L62 101 L63 132" fill="none" stroke="#9A3412" stroke-width="6" stroke-linejoin="round"/>
+        <rect x="33" y="114" width="54" height="7" rx="2" fill="#7C2D12"/>
+        <path d="M35 96 L22 116 L32 122 L40 106 Z" fill="#D4661A"/>
+        <circle cx="25" cy="121" r="5.5" fill="#FDE2CC"/>
+        <path d="M84 96 L100 80 L108 88 L90 108 Z" fill="#D4661A"/>
+        <rect x="101.5" y="56" width="3.4" height="30" rx="1.7" fill="#B4794C" transform="rotate(14 103 72)"/>
+        <circle cx="108" cy="44" r="15" fill="#FFF4E6" stroke="#B4794C" stroke-width="2.4"/>
+        <circle cx="108" cy="44" r="10.5" fill="none" stroke="#EA7A28" stroke-width="2.4"/>
+        <ellipse cx="108" cy="44.5" rx="5" ry="6.4" fill="url(#eggShell)" stroke="#9A6A3E" stroke-width=".8"/>
+        <circle cx="104" cy="82" r="5.5" fill="#FDE2CC"/>
+        <ellipse cx="60" cy="56" rx="31" ry="29" fill="#FDE7D3"/>
+        <path d="M29 50 C30 28 44 20 60 20 C78 20 92 30 91 50 L84 44 L78 50 L70 42 L62 49 L54 42 L46 50 L39 43 Z" fill="#4A2C17"/>
+        <path d="M29 37 Q60 28 91 37 L90 45 Q60 36 30 45 Z" fill="#FFFFFF" stroke="#E2C9AF" stroke-width="1"/>
+        <ellipse cx="60" cy="37.5" rx="4" ry="5" fill="url(#eggShell)" stroke="#9A6A3E" stroke-width=".8"/>
+        <path d="M30 40 L14 30 Q11 36 16 40 Z M30 42 L12 48 Q15 53 19 50 Z" fill="#FFFFFF" stroke="#E2C9AF" stroke-width="1"/>
+        <circle cx="29" cy="41" r="4" fill="#FFFFFF" stroke="#E2C9AF" stroke-width="1"/>
+        <path d="M44 59 Q49 52 54 59 M66 59 Q71 52 76 59" fill="none" stroke="#3B2314" stroke-width="2.8" stroke-linecap="round"/>
+        <ellipse cx="42" cy="67" rx="5.5" ry="3.2" fill="#F4A07A" opacity=".75"/>
+        <ellipse cx="78" cy="67" rx="5.5" ry="3.2" fill="#F4A07A" opacity=".75"/>
+        <path d="M54 66 Q60 75 66 66 Z" fill="#9A3412"/>
+        <path d="M57 70 Q60 72.5 63 70 Q60 68.5 57 70 Z" fill="#F08A7E"/>
+      </svg>
+      <div>
+        <div class="hd"><b id="coachName">ไอติม ชวนคุ้ม</b><span class="osusume" lang="ja" aria-hidden="true">おすすめ</span></div>
+        <p id="coachMsg"></p>
+      </div>
+      <button type="button" id="coachBtn" class="hidden"></button>
+    </section>
+
+    <section class="box" aria-labelledby="hCart">
+      <h3 id="hCart">ในตะกร้า</h3>
+      <ul class="cartlist" id="cartList"></ul>
+      <button type="button" class="btn2 wide" id="btnMoreSize" style="margin-top:12px">＋ เพิ่มเบอร์อื่น</button>
+    </section>
+  </section>
+
+  <!-- ===== ขั้น 3 ที่อยู่ + GPS ===== -->
+  <section class="step" id="step3" data-step="3" aria-labelledby="hStep3" hidden>
+    <h2 id="hStep3" tabindex="-1">ผู้รับและที่อยู่</h2>
+    <div class="box">
+      <div class="lbl-h" id="lblRecv" style="margin-top:0">รับไข่แบบไหน</div>
+      <div class="choices two" id="recv" role="group" aria-labelledby="lblRecv"></div>
+      <label for="custName" style="margin-top:14px">ชื่อผู้รับ</label>
+      <input type="text" id="custName" autocomplete="name">
+      <label for="custPhone">เบอร์โทร (10 หลัก)</label>
+      <input type="tel" id="custPhone" inputmode="numeric" autocomplete="tel" maxlength="12" placeholder="08x-xxx-xxxx">
+      <p class="err hidden" id="phoneErr">เบอร์โทรต้องเป็นเลข 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09</p>
+      <p class="note hidden" id="pickupNote">รับเองที่ร้าน ไม่ต้องกรอกที่อยู่ กรอกชื่อและเบอร์โทรไว้ให้ร้านติดต่อ</p>
+      <div id="addrBlock">
+        <label for="custAddr">ที่อยู่และจุดสังเกต</label>
+        <textarea id="custAddr" autocomplete="street-address" placeholder="บ้านเลขที่ ซอย · ใกล้อะไร"></textarea>
+        <button type="button" class="gps" id="btnGps">📍 ใช้ตำแหน่งที่อยู่ตอนนี้</button>
+        <p class="note" id="gpsMsg" aria-live="polite">ไม่บังคับ ช่วยให้คนส่งหาบ้านเจอเร็วขึ้น</p>
+        <div class="pinwrap hidden" id="pinWrap">
+          <div class="lbl-h" style="margin-top:0">หมุดไม่ตรงบ้าน? กดลูกศรขยับทีละ 10 เมตร</div>
+          <svg class="pinbox" id="pinBox" viewBox="0 0 320 180" role="img" aria-labelledby="pinMoved"></svg>
+          <div class="pad" role="group" aria-label="ขยับหมุด">
+            <button type="button" class="up" data-nudge="n" aria-label="ขยับหมุดขึ้นทางเหนือ 10 เมตร">↑</button>
+            <button type="button" class="lf" data-nudge="w" aria-label="ขยับหมุดไปทางตะวันตก 10 เมตร">←</button>
+            <button type="button" class="ct" id="nudgeReset" aria-label="กลับไปจุดที่ GPS หาได้">จุดเดิม</button>
+            <button type="button" class="rt" data-nudge="e" aria-label="ขยับหมุดไปทางตะวันออก 10 เมตร">→</button>
+            <button type="button" class="dn" data-nudge="s" aria-label="ขยับหมุดลงทางใต้ 10 เมตร">↓</button>
+          </div>
+          <p class="moved" id="pinMoved" aria-live="polite"></p>
+          <p class="coord" id="pinCoord"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ขั้น 4 พื้นที่ + รอบส่ง ===== -->
+  <section class="step" id="step4" data-step="4" aria-labelledby="hStep4" hidden>
+    <h2 id="hStep4" tabindex="-1">วันส่ง พื้นที่ และรอบส่ง</h2>
+    <div class="datecard">
+      <svg class="cal" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <rect x="4" y="10" width="56" height="50" rx="8" fill="#fff"/>
+        <rect x="4" y="10" width="56" height="16" rx="8" fill="#FDBA74"/>
+        <rect x="4" y="18" width="56" height="8" fill="#FDBA74"/>
+        <rect x="16" y="4" width="6" height="14" rx="3" fill="#FFEDD5"/><rect x="42" y="4" width="6" height="14" rx="3" fill="#FFEDD5"/>
+        <ellipse cx="32" cy="43" rx="9" ry="12" fill="url(#eggShell)" stroke="#8E5F38" stroke-width=".8"/>
+      </svg>
+      <div><div class="sm" id="dateLbl">วันส่ง</div><div class="big" id="dateTxt"></div><div class="sm" id="dateNote"></div></div>
+    </div>
+    <div class="box">
+      <div class="lbl-h" id="lblZone" style="margin-top:0">พื้นที่ส่ง</div>
+      <div class="choices" id="zones" role="group" aria-labelledby="lblZone"></div>
+      <p class="minwarn hidden" id="minWarn" role="status"></p>
+      <div class="lbl-h" id="lblSlot">รอบส่ง</div>
+      <div class="choices" id="slots" role="group" aria-labelledby="lblSlot"></div>
+      <p class="note" id="slotNote"></p>
+    </div>
+  </section>
+
+  <!-- ===== ขั้น 5 ตรวจและยืนยัน ===== -->
+  <section class="step" id="step5" data-step="5" aria-labelledby="hStep5" hidden>
+    <h2 id="hStep5" tabindex="-1">ตรวจและยืนยัน</h2>
+    <div class="box sumcard"><h3>ไข่ที่สั่ง</h3><button type="button" class="edit" data-goto="2" aria-label="แก้ไขไข่ที่สั่ง">แก้ไข</button><div class="body" id="sumItems"></div></div>
+    <div class="box sumcard"><h3>ผู้รับ</h3><button type="button" class="edit" data-goto="3" aria-label="แก้ไขผู้รับและที่อยู่">แก้ไข</button><div class="body" id="sumWho"></div></div>
+    <div class="box sumcard"><h3>วันและรอบส่ง</h3><button type="button" class="edit" data-goto="4" aria-label="แก้ไขวัน พื้นที่ และรอบส่ง">แก้ไข</button><div class="body" id="sumWhen"></div></div>
+    <section class="box" aria-labelledby="hPay">
+      <h3 id="hPay">จ่ายเงินแบบไหน</h3>
+      <div class="choices" id="pays" role="group" aria-labelledby="hPay"></div>
+      <div class="lbl-h" id="lblSwap">คืนรังไข่พลาสติกเปล่า (ลดใบละ ฿1)</div>
+      <div class="stepper" style="margin-top:0" role="group" aria-labelledby="lblSwap">
+        <button type="button" id="swapMinus" aria-label="ลดจำนวนรังไข่ที่คืน">−</button>
+        <output id="swapQty" aria-live="polite">0</output>
+        <button type="button" id="swapPlus" class="plus" aria-label="เพิ่มจำนวนรังไข่ที่คืน">+</button>
+      </div>
+      <p class="note" id="swapNote"></p>
+    </section>
+    <section class="box" aria-labelledby="hSum">
+      <h3 id="hSum">สรุปยอด</h3>
+      <div aria-live="polite"><table class="sum"><tbody id="sumBody"></tbody></table></div>
+      <p class="note" id="sumNote"></p>
+      <label class="consent"><input type="checkbox" id="consent"> ยินยอมให้ร้านใช้ชื่อ เบอร์โทร ที่อยู่ และตำแหน่ง เพื่อจัดส่งออเดอร์นี้เท่านั้น</label>
+      <p class="note" id="pdpaRetention">ร้านเก็บข้อมูลนี้ไว้ไม่เกิน 1 ปีหลังออเดอร์ล่าสุด แล้วลบชื่อ เบอร์ ที่อยู่ และพิกัดออก</p>
+    </section>
+  </section>
+
+  <!-- ===== ขั้น 6 โอนผ่าน QR พร้อมเพย์ ===== -->
+  <section class="step" id="step6" data-step="6" aria-labelledby="hStep6" hidden>
+    <h2 id="hStep6" tabindex="-1">โอนเงินผ่าน QR พร้อมเพย์</h2>
+    <div class="box payamt">
+      <div class="sub">ยอดที่ต้องโอน</div>
+      <div class="big" id="payAmt" aria-live="polite"></div>
+      <div class="oid">เลขออเดอร์ <span id="payOid"></span></div>
+      <div id="qrArea"></div>
+      <p class="note" id="qrNote"></p>
+    </div>
+    <div class="box">
+      <h3>ทำตาม 3 ขั้นนี้</h3>
+      <ol class="howto">
+        <li><div><b>บันทึกรูป QR</b><div class="sub" id="howSave"></div></div>
+          <button type="button" class="btn2 wide act hidden" id="btnSaveQr">บันทึกรูป QR</button></li>
+        <li><div><b>เปิดแอปธนาคารแล้วสแกน</b><div class="sub" id="howScan"></div></div></li>
+        <li><div><b>แนบสลิป</b><div class="sub">เลือกรูปสลิปหลังโอนเสร็จ</div></div>
+          <label class="filebtn act" for="slip">📎 เลือกรูปสลิป<input type="file" id="slip" accept="image/*" class="sr"></label>
+          <p class="okmsg act hidden" id="slipName" aria-live="polite"></p>
+          <p class="note act" id="slipNote">ตอนนี้ระบบยังไม่ส่งรูปสลิปไปที่ร้าน (จะเชื่อมต่อภายหลัง) กรุณาเก็บสลิปไว้แสดงร้าน</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===== ขั้น 7 สั่งสำเร็จ ===== -->
+  <section class="step" id="step7" data-step="7" aria-labelledby="hStep7" hidden>
+    <div class="okhead">
+      <svg viewBox="0 0 56 56" aria-hidden="true" focusable="false"><circle cx="28" cy="28" r="26" fill="#166534"/><path d="M16 29 L25 38 L41 20" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <h2 id="hStep7" tabindex="-1">สั่งสำเร็จ</h2>
+    </div>
+    <p class="preview hidden" id="previewNote">โหมดตัวอย่าง: ยังไม่ได้ตั้งที่อยู่ระบบหลังบ้าน ออเดอร์นี้ยังไม่ถูกส่งถึงร้าน</p>
+    <div class="box">
+      <div class="sub">เลขออเดอร์</div>
+      <div class="price" id="okOid"></div>
+      <div id="okItems" style="margin-top:8px"></div>
+    </div>
+    <div class="box"><h3>ส่งเมื่อไร ที่ไหน</h3><div id="okWhen" style="font-size:17px"></div></div>
+    <div class="box"><h3>ขั้นตอนต่อจากนี้</h3><ol class="tl" id="okTl"></ol></div>
+    <div class="box">
+      <h3 id="okEditH">แก้ไขก่อน 22:00</h3>
+      <p class="note" style="font-size:17px;color:var(--ink)" id="okEdit"></p>
+      <div id="shopCall"></div>
+    </div>
+    <button type="button" class="btn2 wide hidden" id="btnBackPay">กลับไปหน้าโอนเงิน</button>
+    <button type="button" class="btn2 wide" id="btnNew">สั่งไข่ออเดอร์ใหม่</button>
+  </section>
+</main>
+
+<div class="bar" id="bar">
+  <div class="wrap">
+    <div class="info">
+      <div class="lbl" id="barLbl">ค่าไข่</div>
+      <div class="amt" id="barTotal" aria-live="polite">฿0</div>
+      <div class="why" id="barWhy" aria-live="polite"></div>
+    </div>
+    <button type="button" id="btnNext" disabled>ต่อไป</button>
+  </div>
+</div>
+
+<dialog id="done" aria-labelledby="doneTitle">
+  <h2 id="doneTitle">ส่งออเดอร์</h2>
+  <p id="sendStatus" role="status" aria-live="polite"></p>
+  <button type="button" id="retrySend" class="hidden">ส่งอีกครั้ง</button>
+  <button type="button" id="closeDone">ปิด</button>
+</dialog>
+
+<script>
+/* PROMPTPAY-BEGIN */ const PromptPay = (function () { var __r = {};
+/* PromptPay QR payload (มาตรฐาน EMVCo Merchant-Presented QR แบบพร้อมเพย์ของไทย)
+ *
+ * ใช้ได้ทั้ง
+ *   - หน้าเว็บ: <script src="promptpay.js"><\/script> → window.PromptPay
+ *   - Node:     const PromptPay = require('./promptpay.js')
+ *
+ * PromptPay.payload(target, amountSatang) → ข้อความที่ต้องนำไปสร้างเป็นรูป QR
+ *   target       : ข้อความตัวเลข (เว้นวรรค/ขีดได้ จะถูกตัดออก)
+ *                  - เบอร์มือถือ 10 หลัก ขึ้นต้น 06/08/09   → tag 29 sub-tag 01 (แปลงเป็น 0066 + เบอร์ไม่มี 0 นำหน้า = 13 หลัก)
+ *                  - เลขบัตรประชาชน/เลขผู้เสียภาษี 13 หลัก → tag 29 sub-tag 02
+ *                  - เลข e-Wallet 15 หลัก                  → tag 29 sub-tag 03
+ *   amountSatang : จำนวนเงินเป็น "สตางค์" จำนวนเต็ม (เช่น 31400 = 314.00 บาท)
+ *                  null/undefined = QR ไม่ระบุยอด (ลูกค้ากรอกยอดเอง) → tag 01 = '11'
+ *                  มียอด → tag 01 = '12' (QR ใช้ครั้งเดียว/ระบุยอด) + tag 54
+ *
+ * โครงข้อความ (เรียงตามเลข tag; แต่ละช่อง = tag 2 หลัก + ความยาว 2 หลัก + ค่า):
+ *   00 '01' · 01 '11'/'12' · 29 {00 AID 'A000000677010111', 01/02/03 ผู้รับเงิน} · 53 '764' (บาท)
+ *   · 54 ยอดเงิน (ทศนิยม 2 ตำแหน่ง) · 58 'TH' · 63 CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF)
+ *   คำนวณ CRC ครอบทั้งข้อความรวม '6304' แล้วเขียนเป็นเลขฐาน 16 ตัวพิมพ์ใหญ่ 4 ตัว
+ *
+ * ⚠️ ข้อจำกัดสำคัญ — ห้ามใช้รับเงินจริงก่อนทำข้อนี้:
+ *   รูปแบบข้อความนี้ทำตามสเปกที่เปิดเผยและตรวจด้วยชุดทดสอบบนเครื่องเท่านั้น (CRC, ความยาวทุก tag, สร้างรูป QR แล้วอ่านกลับ)
+ *   ยังไม่ได้สแกนด้วยแอปธนาคารจริง ต้องให้เจ้าของร้าน (หรือคนที่เจ้าของมอบหมาย) สร้าง QR ด้วยพร้อมเพย์จริงของร้าน
+ *   แล้วสแกนด้วยแอปธนาคารไทยอย่างน้อย 2 ธนาคาร ด้วยยอดเล็ก ๆ (เช่น 1.00 บาท) ตรวจว่า
+ *   (1) ชื่อบัญชีผู้รับที่แอปแสดงเป็นชื่อที่ถูกต้อง (2) ยอดเงินตรง (3) โอนสำเร็จจริง — ก่อนเปิดให้ลูกค้าใช้
+ *
+ * ความเป็นส่วนตัว: เลขพร้อมเพย์ที่ใส่ลงไปจะอยู่ในหน้าเว็บและในรูป QR ลูกค้าทุกคนอ่านได้
+ *   เจ้าของร้านต้องเลือกเองว่าจะใช้เลขไหน (แนะนำเบอร์/บัญชีสำหรับร้านโดยเฉพาะ ไม่ใช่เลขบัตรประชาชนส่วนตัว)
+ */
+(function (root) {
+  'use strict';
+
+  var AID_PROMPTPAY = 'A000000677010111';   // Application ID ของพร้อมเพย์ (โอนเงินเข้าบัญชี)
+  var CURRENCY_THB = '764';                  // ISO 4217 บาทไทย
+  var COUNTRY = 'TH';
+  var MAX_AMOUNT_CHARS = 13;                 // ความยาวสูงสุดของ tag 54 ตามสเปก EMVCo
+
+  /** ประกอบหนึ่งช่อง: tag 2 หลัก + ความยาว 2 หลัก + ค่า */
+  function tlv(tag, value) {
+    var v = String(value);
+    if (v.length > 99) throw new Error('ข้อมูลช่อง ' + tag + ' ยาวเกิน 99 ตัวอักษร');
+    return tag + (v.length < 10 ? '0' : '') + v.length + v;
+  }
+
+  /** CRC-16/CCITT-FALSE: poly 0x1021, init 0xFFFF, ไม่กลับบิต, ไม่ XOR ท้าย · รับข้อความ ASCII คืนตัวเลข 0–65535
+   *  ค่าตรวจสอบมาตรฐาน: crc16('123456789') = 0x29B1 */
+  function crc16(str) {
+    var crc = 0xFFFF;
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      if (c > 0x7F) throw new Error('CRC รองรับเฉพาะตัวอักษร ASCII');
+      crc ^= c << 8;
+      for (var b = 0; b < 8; b++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+    }
+    return crc;
+  }
+
+  /** ตัวเลข → เลขฐาน 16 ตัวพิมพ์ใหญ่ 4 ตัว */
+  function hex4(n) { return ('0000' + n.toString(16).toUpperCase()).slice(-4); }
+
+  /** แยกชนิดผู้รับเงิน → { subTag, value, kind } หรือ throw ข้อความไทย */
+  function parseTarget(target) {
+    if (typeof target !== 'string') throw new Error('เลขพร้อมเพย์ต้องเป็นข้อความตัวเลข (เช่น "0812345678") ไม่ใช่ตัวเลข เพราะเลข 0 ข้างหน้าจะหาย');
+    var d = target.replace(/[\s-]/g, '');
+    if (!/^[0-9]+$/.test(d)) throw new Error('เลขพร้อมเพย์ต้องมีแต่ตัวเลข (เว้นวรรคหรือขีดได้)');
+    if (d.length === 10) {
+      if (!/^0[689][0-9]{8}$/.test(d)) throw new Error('เบอร์มือถือต้องมี 10 หลัก ขึ้นต้น 06, 08 หรือ 09');
+      // 0812345678 → 66812345678 → เติม 0 ข้างหน้าให้ครบ 13 หลัก → 0066812345678
+      var intl = '66' + d.slice(1);
+      return { kind: 'MOBILE', subTag: '01', value: ('0000000000000' + intl).slice(-13) };
+    }
+    if (d.length === 13) return { kind: 'NATIONAL_ID', subTag: '02', value: d };
+    if (d.length === 15) return { kind: 'EWALLET', subTag: '03', value: d };
+    throw new Error('เลขพร้อมเพย์ต้องเป็นเบอร์มือถือ 10 หลัก, เลขบัตรประชาชน/เลขผู้เสียภาษี 13 หลัก หรือเลข e-Wallet 15 หลัก (ได้ ' + d.length + ' หลัก)');
+  }
+
+  /** สตางค์ (จำนวนเต็ม) → "บาท.สตางค์" ทศนิยม 2 ตำแหน่ง โดยไม่ใช้ทศนิยมลอยตัว */
+  function formatAmount(amountSatang) {
+    if (typeof amountSatang !== 'number' || !Number.isSafeInteger(amountSatang)) throw new Error('ยอดเงินต้องเป็นจำนวนเต็มหน่วยสตางค์ (เช่น 31400 = 314.00 บาท)');
+    if (amountSatang < 1) throw new Error('ยอดเงินต้องมากกว่า 0 สตางค์');
+    var baht = Math.floor(amountSatang / 100), satang = amountSatang % 100;
+    var s = String(baht) + '.' + (satang < 10 ? '0' : '') + String(satang);
+    if (s.length > MAX_AMOUNT_CHARS) throw new Error('ยอดเงินยาวเกิน ' + MAX_AMOUNT_CHARS + ' ตัวอักษร');
+    return s;
+  }
+
+  /** สร้างข้อความ QR พร้อมเพย์ */
+  function payload(target, amountSatang) {
+    var t = parseTarget(target);
+    var hasAmount = amountSatang !== null && amountSatang !== undefined;
+    var amount = hasAmount ? formatAmount(amountSatang) : null;
+    var s = tlv('00', '01') +
+      tlv('01', hasAmount ? '12' : '11') +
+      tlv('29', tlv('00', AID_PROMPTPAY) + tlv(t.subTag, t.value)) +
+      tlv('53', CURRENCY_THB) +
+      (hasAmount ? tlv('54', amount) : '') +
+      tlv('58', COUNTRY) +
+      '6304';
+    return s + hex4(crc16(s));
+  }
+
+  /** ตรวจเลขหลักสุดท้ายของเลขบัตรประชาชน/เลขผู้เสียภาษี 13 หลัก (mod 11) — ใช้เตือนพิมพ์ผิด payload() ไม่บังคับ */
+  function thaiIdChecksumOk(id) {
+    var d = String(id).replace(/[\s-]/g, '');
+    if (!/^[0-9]{13}$/.test(d)) return false;
+    var sum = 0;
+    for (var i = 0; i < 12; i++) sum += Number(d.charAt(i)) * (13 - i);
+    return (11 - (sum % 11)) % 10 === Number(d.charAt(12));
+  }
+
+  var api = { payload: payload, crc16: crc16, formatAmount: formatAmount, parseTarget: parseTarget, thaiIdChecksumOk: thaiIdChecksumOk, AID: AID_PROMPTPAY };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PromptPay = api;
+})(__r);
+return __r.PromptPay; })(); /* PROMPTPAY-END */
+(function(){
+'use strict';
+/* ===== ค่าตั้ง (ตามมติเจ้าของ 5 พ.ย. 2569 · ราคาเป็นบาทจำนวนเต็ม) ===== */
+const CONFIG = {
+  priceTableVersion: '2026-11-05-v5',
+  // เบอร์ไข่ตาม มกษ. 6702-2553 · prices = [1–4 แผง, 5–9 แผง, 10 แผงขึ้นไป] บาท/แผง 30 ฟอง
+  sizes: [
+    { code:'0', weight:'มากกว่า 70 กรัม/ฟอง', prices:[154,151,148], egg:1.00 },
+    { code:'1', weight:'65–70 กรัม/ฟอง',      prices:[148,145,142], egg:.94 },
+    { code:'2', weight:'60–65 กรัม/ฟอง',      prices:[140,136,133], egg:.88 },
+    { code:'3', weight:'55–60 กรัม/ฟอง',      prices:[132,130,127], egg:.82 },
+    { code:'4', weight:'50–55 กรัม/ฟอง',      prices:[126,124,121], egg:.76 },
+    { code:'5', weight:'45–50 กรัม/ฟอง',      prices:[118,116,113], egg:.70 }
+  ],
+  // ขั้นราคาแผง นับแผงเต็มรวมทุกเบอร์ในออเดอร์
+  trayTiers: [
+    { code:'RETAIL',        min:1,  idx:0, label:'1–4 แผง' },
+    { code:'SAVER_5_9',     min:5,  idx:1, label:'5–9 แผง' },
+    { code:'WHOLESALE_10P', min:10, idx:2, label:'10 แผงขึ้นไป', wholesale:true }
+  ],
+  // แพ็กเล็ก ราคาตายตัว ไม่มีส่วนลดขั้นราคา · มีเฉพาะเบอร์ 2
+  packs: {
+    '2': [
+      { packEggs:15, name:'ครึ่งแผง 15 ฟอง', baht:84 },
+      { packEggs:10, name:'10 ฟอง', baht:56 },
+      { packEggs:8,  name:'แพ็ก 7+1 (8 ฟอง)', baht:42, tagline:'กินวันละฟอง ครบสัปดาห์ แถมอีก 1 ฟอง' }
+    ]
+  },
+  prepayPct: 2,            // โอนก่อนลด 2% ปัดลงเป็นบาท (ไม่รวมแผงราคาส่ง)
+  ppTrayDiscountBaht: 1,   // คืนรังไข่พลาสติก ลดใบละ 1 บาท ไม่เกินจำนวนแผงเต็ม
+  codFeeBaht: 20,          // เก็บเงินปลายทาง (ยกเว้นรับเอง)
+  maxQty: 50,
+  cutoffHour: 22,          // v7: ปิดรับ 22:00 เวลาไทย · ก่อนนี้ส่งพรุ่งนี้ · ตั้งแต่ 22:00 ส่งมะรืนนี้
+  zones: [
+    { code:'WRN', name:'วารินชำราบ', minSatang:10000, slots:['MORNING','LATE','AFTERNOON'] },
+    { code:'UBN', name:'เมืองอุบลฯ ชั้นใน', minSatang:10000, slots:['MORNING','LATE','AFTERNOON'] },
+    { code:'DKY', name:'ดอนกลาง และ ขามใหญ่', minSatang:30000, slots:['LATE','AFTERNOON'] },
+    { code:'PU',  name:'รับเองที่ร้าน', minSatang:0, slots:['PICKUP'], pickup:true }
+  ],
+  slots: { MORNING:'05:30–07:00', LATE:'09:30–11:30', AFTERNOON:'13:00–15:00', PICKUP:'08:00–17:00' },
+  slotInfo: {
+    MORNING:   { name:'รอบเช้าตรู่', note:'ก่อนรถติด' },
+    LATE:      { name:'รอบสาย', note:'หลังชั่วโมงเร่งด่วนตอนเช้า' },
+    AFTERNOON: { name:'รอบบ่าย', note:'ก่อนรถติดช่วงเลิกงาน' },
+    PICKUP:    { name:'มารับเอง', note:'ที่ร้าน' }
+  },
+  promptpay: { id: '' /* [รอเจ้าของ] */ , name: '' },
+  shopPhone: '',           // [รอเจ้าของ] เบอร์ร้าน · ว่าง = แสดง [เบอร์ร้าน]
+  gpsNudgeM: 10,           // ขยับหมุดครั้งละ 10 เมตร
+  pipeline: {
+    schemaVersion: 'ubonfreshegg.pipeline.v1',
+    url: 'https://script.google.com/macros/s/AKfycbyTZF4Np-YQR9fNuNLoH4I7pC2i23EHRpwrp_6FuVG-ajDKFXhGFcZo-A1QenqhzSex/exec',  // Code.gs Web App v1 (6 พ.ย. 2569) · ว่าง = โหมดตัวอย่าง
+    timeoutMs: 15000
+  }
+};
+const EGGS_PER_TRAY = 30;
+const M_PER_DEG_LAT = 111320;
+
+/* ตัวเข้ารหัส QR คัดลอกจาก ubon-qr-poster.html (ไม่แก้ไขตรรกะ) */
+/* =====================================================================
+   QR Code encoder (ISO/IEC 18004) — byte mode, UTF-8, versions 1–40,
+   ECC L/M/Q/H, Reed–Solomon over GF(256) poly 0x11D, all 8 masks with
+   standard penalty scoring, format + version information.
+   ===================================================================== */
+const QR = (function(){
+  var ECL = { L:{ord:0,bits:1}, M:{ord:1,bits:0}, Q:{ord:2,bits:3}, H:{ord:3,bits:2} };
+  var ECC_PER_BLOCK = [
+    [-1,7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28,28,28,30,30,26,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+    [-1,10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26,26,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28],
+    [-1,13,22,18,26,18,24,18,22,20,24,28,26,24,20,30,24,28,28,26,30,28,30,30,30,30,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+    [-1,17,28,22,16,22,28,26,26,24,28,24,28,22,24,24,30,28,28,26,28,30,24,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30]];
+  var NUM_BLOCKS = [
+    [-1,1,1,1,1,1,2,2,2,2,4,4,4,4,4,6,6,6,6,7,8,8,9,9,10,12,12,12,13,14,15,16,17,18,19,19,20,21,22,24,25],
+    [-1,1,1,1,2,2,4,4,4,5,5,5,8,9,9,10,10,11,13,14,16,17,17,18,20,21,23,25,26,28,29,31,33,35,37,38,40,43,45,47,49],
+    [-1,1,1,2,2,4,4,6,6,8,8,8,10,12,16,12,17,16,18,21,20,23,23,25,27,29,34,34,35,38,40,43,45,48,51,53,56,59,62,65,68],
+    [-1,1,1,2,4,4,4,5,6,8,8,11,11,16,16,18,16,19,21,25,25,25,34,30,32,35,37,40,42,45,48,51,54,57,60,63,66,70,74,77,81]];
+
+  function utf8(str){
+    if (typeof TextEncoder !== 'undefined') return Array.from(new TextEncoder().encode(str));
+    var s = unescape(encodeURIComponent(str)), out = [];
+    for (var i=0;i<s.length;i++) out.push(s.charCodeAt(i));
+    return out;
+  }
+  function rawModules(ver){
+    var r = (16*ver+128)*ver+64;
+    if (ver>=2){ var na = Math.floor(ver/7)+2; r -= (25*na-10)*na-55; if (ver>=7) r -= 36; }
+    return r;
+  }
+  function dataCodewords(ver, e){
+    return Math.floor(rawModules(ver)/8) - ECC_PER_BLOCK[e.ord][ver]*NUM_BLOCKS[e.ord][ver];
+  }
+  function gfMul(x,y){
+    var z=0;
+    for (var i=7;i>=0;i--){ z=(z<<1)^((z>>>7)*0x11D); z^=((y>>>i)&1)*x; }
+    return z & 0xFF;
+  }
+  function rsDivisor(deg){
+    var res=[]; for (var i=0;i<deg-1;i++) res.push(0); res.push(1);
+    var root=1;
+    for (var i=0;i<deg;i++){
+      for (var j=0;j<res.length;j++){ res[j]=gfMul(res[j],root); if (j+1<res.length) res[j]^=res[j+1]; }
+      root=gfMul(root,0x02);
+    }
+    return res;
+  }
+  function rsRemainder(data, div){
+    var res = div.map(function(){return 0;});
+    data.forEach(function(b){
+      var f = b ^ res.shift(); res.push(0);
+      div.forEach(function(c,i){ res[i]^=gfMul(c,f); });
+    });
+    return res;
+  }
+  function alignPos(ver, size){
+    if (ver===1) return [];
+    var na = Math.floor(ver/7)+2;
+    var step = (ver===32) ? 26 : Math.ceil((ver*4+4)/(na*2-2))*2;
+    var res=[6];
+    for (var pos=size-7; res.length<na; pos-=step) res.splice(1,0,pos);
+    return res;
+  }
+
+  function encode(text, eclName, minVer, maxVer, forceMask){
+    var e = ECL[eclName] || ECL.M;
+    minVer = minVer || 1; maxVer = maxVer || 40;
+    var bytes = utf8(text);
+    var ver, cap, ccBits;
+    for (ver=minVer; ; ver++){
+      cap = dataCodewords(ver,e)*8;
+      ccBits = ver<=9 ? 8 : 16;
+      if (bytes.length < (1<<ccBits) && 4+ccBits+bytes.length*8 <= cap) break;
+      if (ver>=maxVer) throw new Error('TOO_LONG');
+    }
+    // bit stream
+    var bb=[];
+    function app(val,len){ for (var i=len-1;i>=0;i--) bb.push((val>>>i)&1); }
+    app(0x4,4); app(bytes.length,ccBits);
+    bytes.forEach(function(b){ app(b,8); });
+    app(0, Math.min(4, cap-bb.length));
+    app(0, (8 - bb.length%8)%8);
+    for (var pad=0xEC; bb.length<cap; pad^=0xEC^0x11) app(pad,8);
+    var dataCw=[]; for (var i=0;i<bb.length;i+=8){ var v=0; for (var k=0;k<8;k++) v=(v<<1)|bb[i+k]; dataCw.push(v); }
+
+    // RS blocks + interleave
+    var nb = NUM_BLOCKS[e.ord][ver], eccLen = ECC_PER_BLOCK[e.ord][ver];
+    var rawCw = Math.floor(rawModules(ver)/8);
+    var numShort = nb - rawCw % nb, shortLen = Math.floor(rawCw/nb);
+    var div = rsDivisor(eccLen), blocks=[], kk=0;
+    for (var i=0;i<nb;i++){
+      var dat = dataCw.slice(kk, kk + shortLen - eccLen + (i<numShort?0:1));
+      kk += dat.length;
+      var ecc = rsRemainder(dat, div);
+      if (i<numShort) dat.push(0);
+      blocks.push(dat.concat(ecc));
+    }
+    var all=[];
+    for (var i=0;i<blocks[0].length;i++)
+      for (var j=0;j<blocks.length;j++)
+        if (i !== shortLen-eccLen || j>=numShort) all.push(blocks[j][i]);
+
+    // matrix
+    var size = ver*4+17, M=[], F=[];
+    for (var y=0;y<size;y++){ M.push(new Array(size).fill(false)); F.push(new Array(size).fill(false)); }
+    function setF(x,y,d){ M[y][x]=d; F[y][x]=true; }
+    for (var i=0;i<size;i++){ setF(6,i,i%2===0); setF(i,6,i%2===0); }
+    function finder(cx,cy){
+      for (var dy=-4;dy<=4;dy++) for (var dx=-4;dx<=4;dx++){
+        var d=Math.max(Math.abs(dx),Math.abs(dy)), xx=cx+dx, yy=cy+dy;
+        if (xx>=0&&xx<size&&yy>=0&&yy<size) setF(xx,yy, d!==2 && d!==4);
+      }
+    }
+    finder(3,3); finder(size-4,3); finder(3,size-4);
+    var ap = alignPos(ver,size), na=ap.length;
+    for (var i=0;i<na;i++) for (var j=0;j<na;j++){
+      if ((i===0&&j===0)||(i===0&&j===na-1)||(i===na-1&&j===0)) continue;
+      for (var dy=-2;dy<=2;dy++) for (var dx=-2;dx<=2;dx++)
+        setF(ap[i]+dx, ap[j]+dy, Math.max(Math.abs(dx),Math.abs(dy))!==1);
+    }
+    function drawFormat(mask){
+      var data = (e.bits<<3)|mask, rem=data;
+      for (var i=0;i<10;i++) rem=(rem<<1)^((rem>>>9)*0x537);
+      var bits = ((data<<10)|rem) ^ 0x5412;
+      function g(i){ return ((bits>>>i)&1)!==0; }
+      for (var i=0;i<=5;i++) setF(8,i,g(i));
+      setF(8,7,g(6)); setF(8,8,g(7)); setF(7,8,g(8));
+      for (var i=9;i<15;i++) setF(14-i,8,g(i));
+      for (var i=0;i<8;i++) setF(size-1-i,8,g(i));
+      for (var i=8;i<15;i++) setF(8,size-15+i,g(i));
+      setF(8,size-8,true);
+    }
+    drawFormat(0);
+    if (ver>=7){
+      var rem=ver; for (var i=0;i<12;i++) rem=(rem<<1)^((rem>>>11)*0x1F25);
+      var vb = (ver<<12)|rem;
+      for (var i=0;i<18;i++){
+        var bit=((vb>>>i)&1)!==0, a=size-11+i%3, b=Math.floor(i/3);
+        setF(a,b,bit); setF(b,a,bit);
+      }
+    }
+    // codewords (zig-zag)
+    var bi=0;
+    for (var right=size-1; right>=1; right-=2){
+      if (right===6) right=5;
+      for (var vert=0; vert<size; vert++){
+        for (var j=0;j<2;j++){
+          var x=right-j, upward=((right+1)&2)===0, y=upward?size-1-vert:vert;
+          if (!F[y][x] && bi<all.length*8){ M[y][x] = ((all[bi>>>3]>>>(7-(bi&7)))&1)!==0; bi++; }
+        }
+      }
+    }
+    function maskFn(m,x,y){
+      switch(m){
+        case 0: return (x+y)%2===0;
+        case 1: return y%2===0;
+        case 2: return x%3===0;
+        case 3: return (x+y)%3===0;
+        case 4: return (Math.floor(x/3)+Math.floor(y/2))%2===0;
+        case 5: return (x*y)%2+(x*y)%3===0;
+        case 6: return ((x*y)%2+(x*y)%3)%2===0;
+        default: return ((x+y)%2+(x*y)%3)%2===0;
+      }
+    }
+    function applyMask(m){
+      for (var y=0;y<size;y++) for (var x=0;x<size;x++)
+        if (!F[y][x] && maskFn(m,x,y)) M[y][x]=!M[y][x];
+    }
+    function penalty(){
+      var p=0, dark=0;
+      function lineScore(get){
+        for (var a=0;a<size;a++){
+          var run=1;
+          for (var b=1;b<=size;b++){
+            if (b<size && get(a,b)===get(a,b-1)) run++;
+            else { if (run>=5) p += 3+(run-5); run=1; }
+          }
+          // finder-like 1:1:3:1:1 with 4 light modules on one side (outside = light)
+          for (var b=-4;b<size;b++){
+            var pat1=true, pat2=true;
+            var A=[1,0,1,1,1,0,1,0,0,0,0], B=[0,0,0,0,1,0,1,1,1,0,1];
+            for (var k=0;k<11;k++){
+              var c=b+k, v=(c<0||c>=size)?0:(get(a,c)?1:0);
+              if (v!==A[k]) pat1=false;
+              if (v!==B[k]) pat2=false;
+              if (!pat1&&!pat2) break;
+            }
+            if (pat1) p+=40;
+            if (pat2) p+=40;
+          }
+        }
+      }
+      lineScore(function(r,c){return M[r][c];});
+      lineScore(function(c,r){return M[r][c];});
+      for (var y=0;y<size-1;y++) for (var x=0;x<size-1;x++){
+        var c=M[y][x]; if (c===M[y][x+1]&&c===M[y+1][x]&&c===M[y+1][x+1]) p+=3;
+      }
+      for (var y=0;y<size;y++) for (var x=0;x<size;x++) if (M[y][x]) dark++;
+      var total=size*size, k=Math.ceil(Math.abs(dark*20-total*10)/total)-1;
+      p += Math.max(0,k)*10;
+      return p;
+    }
+    var best=-1, bestP=Infinity, scores=[];
+    for (var m=0;m<8;m++){
+      applyMask(m); drawFormat(m);
+      var s=penalty(); scores.push(s);
+      if (s<bestP){ bestP=s; best=m; }
+      applyMask(m);
+    }
+    if (forceMask>=0 && forceMask<8) best=forceMask;
+    applyMask(best); drawFormat(best);
+    return { version:ver, size:size, ecc:eclName, mask:best, penalties:scores, modules:M, bytes:bytes.length };
+  }
+
+  function toSVG(qr, border, extraAttrs){
+    border = border==null ? 4 : border;
+    var dim = qr.size + border*2, d=[];
+    for (var y=0;y<qr.size;y++){
+      var x=0;
+      while (x<qr.size){
+        if (qr.modules[y][x]){
+          var s=x; while (x<qr.size && qr.modules[y][x]) x++;
+          d.push('M'+(s+border)+','+(y+border)+'h'+(x-s)+'v1h-'+(x-s)+'z');
+        } else x++;
+      }
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+dim+' '+dim+'" shape-rendering="crispEdges"'+(extraAttrs||'')+'>'+
+      '<rect width="'+dim+'" height="'+dim+'" fill="#FFFFFF"/>'+
+      '<path d="'+d.join('')+'" fill="#000000"/></svg>';
+  }
+  return { encode:encode, toSVG:toSVG };
+})();
+
+const $ = id => document.getElementById(id);
+const baht = n => '฿' + n.toLocaleString('th-TH');          // n = บาทจำนวนเต็ม
+const bahtS = s => baht(Math.round(s/100));                   // s = สตางค์ (หาร 100 ลงตัวเสมอ)
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const SIZE = code => CONFIG.sizes.find(s => s.code === String(code));
+const packsOf = code => CONFIG.packs[String(code)] || [];
+const keyOf = (size, eggs) => size + '-' + eggs;
+// สินค้าทุกแบบ เรียงตามลำดับแสดงผล/ลำดับใน payload: เบอร์ 0→5 แต่ละเบอร์ แผงก่อน แล้วแพ็กเล็ก
+const PRODUCTS = [];
+CONFIG.sizes.forEach(s => {
+  PRODUCTS.push({ key:keyOf(s.code,EGGS_PER_TRAY), size:s.code, packEggs:EGGS_PER_TRAY, tray:true, name:'ยกแผง 30 ฟอง', short:'แผง' });
+  packsOf(s.code).forEach(p => PRODUCTS.push({ key:keyOf(s.code,p.packEggs), size:s.code, packEggs:p.packEggs, tray:false, name:p.name, short:p.packEggs+' ฟอง', baht:p.baht, tagline:p.tagline }));
+});
+
+const state = { step:1, curSize:'2', cart:{}, zone:'WRN', prevZone:'WRN', slot:'MORNING', pay:'PREPAY_TRANSFER', swap:0,
+  gps:null, gpsBase:null, nudge:{ n:0, e:0 }, lastNudge:'', sending:false, submitted:null };
+PRODUCTS.forEach(p => state.cart[p.key] = 0);
+
+const tierFor = fullTrays => [...CONFIG.trayTiers].reverse().find(t => fullTrays >= t.min) || CONFIG.trayTiers[0];
+const nextTier = fullTrays => CONFIG.trayTiers.find(t => t.min > Math.max(fullTrays, 0) && t.min > tierFor(fullTrays).min) || null;
+
+/* ===== เวลาตัดรอบ (เวลาไทย) ===== */
+function bangkokNow(){
+  const parts = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(new Date());
+  const g = t => +parts.find(x => x.type===t).value;
+  return { y:g('year'), m:g('month'), d:g('day'), h:g('hour')%24, mi:g('minute'), s:g('second') };
+}
+function deliveryInfo(){
+  const n = bangkokNow();
+  const before = n.h < CONFIG.cutoffHour;
+  const addDays = before ? 1 : 2;                       // ก่อน 22:00 ส่งพรุ่งนี้ · ตั้งแต่ 22:00 ส่งมะรืนนี้
+  const dt = new Date(Date.UTC(n.y, n.m-1, n.d + addDays));
+  const fmt = d => d.toLocaleDateString('th-TH',{timeZone:'UTC',weekday:'long',day:'numeric',month:'short'});
+  const dateTxt = fmt(dt);
+  const editBy = new Date(Date.UTC(n.y, n.m-1, n.d + addDays - 1));   // แก้ไขได้ถึง 22:00 ของวันก่อนส่ง
+  const left = before ? (CONFIG.cutoffHour*3600) - (n.h*3600 + n.mi*60 + n.s) : 0;
+  return { before, dateTxt, iso: dt.toISOString().slice(0,10), left, editByTxt: (before ? 'วันนี้ ' : 'พรุ่งนี้ ') + fmt(editBy) };
+}
+const cutTxt = () => String(CONFIG.cutoffHour).padStart(2,'0') + ':00';
+function renderCutoff(){
+  const d = deliveryInfo();
+  if (d.before){
+    const h = Math.floor(d.left/3600), m = Math.floor(d.left%3600/60);
+    $('cutoff').innerHTML = `สั่งภายใน <b>${h} ชม. ${m} นาที</b> (ก่อน ${cutTxt()}) · ส่ง${d.dateTxt}`;
+  } else {
+    $('cutoff').innerHTML = `เลย ${cutTxt()} แล้ว · ออเดอร์นี้ส่ง<b>${d.dateTxt}</b>`;
+  }
+  const pickup = !!curZone().pickup;
+  $('dateLbl').textContent = pickup ? 'วันรับไข่ที่ร้าน' : 'วันส่ง';
+  $('dateTxt').textContent = d.dateTxt;
+  $('dateNote').textContent = d.before ? `สั่งก่อน ${cutTxt()} ได้ไข่พรุ่งนี้` : `สั่งตั้งแต่ ${cutTxt()} จึงได้ไข่วันถัดไป`;
+}
+
+/* ===== คำนวณเงิน: ทางเดียวที่ทั้งหน้าจอและ priceOf ใช้ (บาทจำนวนเต็ม → ×100 เป็นสตางค์) =====
+   unit แผง = ราคาเบอร์นั้นตามขั้นของ "แผงเต็มรวมทุกเบอร์" · แพ็กเล็กไม่มีขั้นราคา
+   prepayBase = แพ็กเล็ก + แผง (ถ้ายังไม่ถึงราคาส่ง 10+) · prepay = floor(prepayBase×2/100)
+   pp = ใบละ 1 บาท ไม่เกินแผงเต็ม · ค่าส่ง COD 20 (ยกเว้นรับเอง) · total = goods − prepay − pp + fee
+   subtotal = Σ ราคาแผงขั้น 1–4 ของเบอร์นั้น×จำนวน + แพ็กเล็ก · tierDiscount = subtotal − goods */
+function priceCart(cart, opts){
+  const o = Object.assign({ payment:'PREPAY_TRANSFER', method:'delivery', ppTraysReturned:0 }, opts || {});
+  if (!Array.isArray(cart)) throw new Error('cart ต้องเป็น array');
+  if (o.payment !== 'PREPAY_TRANSFER' && o.payment !== 'COD') throw new Error('payment ไม่ถูกต้อง');
+  if (o.method !== 'delivery' && o.method !== 'pickup') throw new Error('method ไม่ถูกต้อง');
+  const lines = [];
+  for (const l of cart){
+    if (!l) throw new Error('รายการไม่ถูกต้อง');
+    const size = String(l.size), sz = SIZE(size);
+    if (!sz) throw new Error('ไม่มีเบอร์ ' + l.size);
+    const tray = l.packEggs === EGGS_PER_TRAY;
+    const pk = tray ? null : packsOf(size).find(p => p.packEggs === l.packEggs);
+    if (!tray && !pk) throw new Error(`ไม่มีแพ็ก ${l.packEggs} ฟอง สำหรับเบอร์ ${size} (แพ็กเล็กมีเฉพาะเบอร์ 2)`);
+    if (!Number.isInteger(l.qty) || l.qty < 0 || l.qty > 99) throw new Error('จำนวนไม่ถูกต้อง');
+    if (l.qty) lines.push({ size, sz, pk, tray, packEggs:l.packEggs, qty:l.qty });
+  }
+  const fullTrays = lines.filter(l => l.tray).reduce((n,l) => n + l.qty, 0);
+  const tier = tierFor(fullTrays);
+  let goods = 0, prepayBase = 0, subtotal = 0, eggs = 0;
+  const items = lines.map(l => {
+    const retail = l.tray ? l.sz.prices[0] : l.pk.baht;
+    const unit = l.tray ? l.sz.prices[tier.idx] : l.pk.baht;
+    const lineTotal = unit * l.qty;
+    subtotal += retail * l.qty; goods += lineTotal;
+    if (!l.tray || !tier.wholesale) prepayBase += lineTotal;
+    eggs += l.packEggs * l.qty;
+    return { sku:`EGG-${l.size}-${l.packEggs}`, size:l.size, packEggs:l.packEggs, qty:l.qty, tier: l.tray ? tier.code : null,
+      unitPriceSatang:unit*100, lineTotalSatang:lineTotal*100, eggs:l.packEggs*l.qty };
+  });
+  const tierDisc = subtotal - goods;
+  const pp = Math.max(0, Math.min(o.ppTraysReturned | 0, fullTrays));
+  const prepay = o.payment === 'PREPAY_TRANSFER' ? Math.floor(prepayBase * CONFIG.prepayPct / 100) : 0;
+  const ppOff = pp * CONFIG.ppTrayDiscountBaht;
+  const fee = (o.payment === 'COD' && o.method !== 'pickup' && eggs > 0) ? CONFIG.codFeeBaht : 0;
+  const total = goods - prepay - ppOff + fee;
+  return {
+    items, tier, eggs, goods, prepayBase, prepay, ppOff, fee, total, tierDisc, subtotal,
+    trays: { totalEggs:eggs, fullTrays, wholeTrays:Math.floor(eggs/EGGS_PER_TRAY), remainderEggs:eggs%EGGS_PER_TRAY, ppTraysReturned:pp },
+    pricing: {
+      priceTableVersion: CONFIG.priceTableVersion,
+      subtotalSatang: subtotal * 100,
+      tierDiscountSatang: tierDisc * 100,
+      prepayDiscountSatang: prepay * 100,
+      ppTrayDiscountSatang: ppOff * 100,
+      deliveryFeeSatang: fee * 100,
+      totalSatang: total * 100
+    }
+  };
+}
+const curZone = () => CONFIG.zones.find(z => z.code===state.zone);
+const curOpts = () => ({ payment:state.pay, method: curZone().pickup ? 'pickup' : 'delivery', ppTraysReturned:state.swap });
+const stateCart = (cartObj) => PRODUCTS.map(p => ({ size:p.size, packEggs:p.packEggs, qty:(cartObj||state.cart)[p.key] }));
+function calc(){
+  const r0 = priceCart(stateCart(), curOpts());
+  if (state.swap > r0.trays.fullTrays) state.swap = r0.trays.fullTrays;
+  const r = priceCart(stateCart(), curOpts());
+  const zone = curZone();
+  r.zone = zone;
+  r.belowMin = r.goods > 0 && r.goods*100 < zone.minSatang;
+  return r;
+}
+const trayText = t => t.totalEggs===0 ? '0 ฟอง' : `${t.totalEggs} ฟอง = ${t.wholeTrays} แผง + ${t.remainderEggs} ฟอง`;
+const itemLabel = it => { const p = PRODUCTS.find(x => x.size===it.size && x.packEggs===it.packEggs); return `เบอร์ ${it.size} · ${p ? p.name : it.packEggs+' ฟอง'}`; };
+const unitTxt = it => it.packEggs===EGGS_PER_TRAY ? ` (${bahtS(it.unitPriceSatang)}/แผง)` : '';
+
+/* ===== ภาพ ===== */
+function eggSvg(s){
+  const k = s.egg, rx = 17*k, ry = 23*k;
+  return `<svg class="egg" viewBox="0 0 44 56" aria-hidden="true" focusable="false"><ellipse cx="22" cy="53" rx="${rx+2}" ry="3" fill="#F1D9C2"/><ellipse cx="22" cy="${51-ry}" rx="${rx}" ry="${ry}" fill="url(#eggShell)" stroke="#8E5F38" stroke-width=".8"/></svg>`;
+}
+function traySvg(){
+  const rows = [ {y:44, x0:44, dx:28, rx:11, ry:14}, {y:66, x0:34, dx:33, rx:12.5, ry:16}, {y:90, x0:23, dx:38.5, rx:14, ry:18} ];
+  let g = '';
+  rows.forEach(r => {
+    for (let i=0;i<5;i++){
+      const cx = r.x0 + r.dx*i;
+      g += `<ellipse cx="${cx}" cy="${r.y+r.ry*0.55}" rx="${r.rx+3}" ry="${r.ry*0.42}" fill="#050505" stroke="#3A3A3A" stroke-width="1"/>`;
+      g += `<ellipse cx="${cx}" cy="${r.y}" rx="${r.rx}" ry="${r.ry}" fill="url(#eggShell)" stroke="#8E5F38" stroke-width=".7"/>`;
+    }
+  });
+  return `<svg class="trayart" viewBox="0 0 200 130" role="img" aria-label="ไข่ไก่สีน้ำตาลเรียงในรังไข่พลาสติกสีดำ 30 ฟอง">
+    <path d="M28 34 H172 L196 112 Q197 118 190 118 H10 Q3 118 4 112 Z" fill="url(#trayBody)"/>
+    <path d="M28 34 H172 L174 40 H26 Z" fill="#3A3A3A"/>
+    ${g}
+    <rect x="4" y="112" width="192" height="12" rx="4" fill="#1A1A1A"/>
+    <rect x="12" y="114" width="176" height="2" rx="1" fill="#4A4A4A"/>
+  </svg>`;
+}
+function packSvg(n){
+  return `<svg class="packart" viewBox="0 0 80 80" role="img" aria-label="ไข่ไก่สีน้ำตาล ${n} ฟอง">
+    <ellipse cx="40" cy="68" rx="34" ry="8" fill="#F1D9C2"/>
+    <ellipse cx="24" cy="48" rx="13" ry="17" fill="url(#eggShell)" stroke="#8E5F38" stroke-width=".7" transform="rotate(-10 24 48)"/>
+    <ellipse cx="56" cy="48" rx="13" ry="17" fill="url(#eggShell)" stroke="#8E5F38" stroke-width=".7" transform="rotate(10 56 48)"/>
+    <ellipse cx="40" cy="42" rx="14" ry="19" fill="url(#eggShell)" stroke="#8E5F38" stroke-width=".7"/>
+  </svg>`;
+}
+
+/* ===== ขั้นตอน ===== */
+const STEPS = { 1:'เลือกเบอร์ไข่', 2:'จำนวนและราคา', 3:'ผู้รับและที่อยู่', 4:'วันส่ง พื้นที่ และรอบส่ง', 5:'ตรวจและยืนยัน', 6:'โอนผ่าน QR พร้อมเพย์', 7:'สั่งสำเร็จ' };
+function prevStep(){
+  const s = state.step;
+  if (state.submitted) return s === 7 && state.submitted.pay === 'PREPAY_TRANSFER' ? 6 : null; // ส่งแล้ว ห้ามย้อนไปแก้ (กันออเดอร์ซ้ำ)
+  return s > 1 ? s - 1 : null;
+}
+function goTo(n, opts){
+  opts = opts || {};
+  if (state.submitted && n < 6) n = state.step;               // หลังส่งออเดอร์แล้ว ย้อนไปแก้ไม่ได้ (ต้องติดต่อร้าน)
+  if (!state.submitted && n >= 6) n = Math.min(state.step, 5);
+  if (n === 6 && state.submitted && state.submitted.pay !== 'PREPAY_TRANSFER') n = 7;
+  state.step = n;
+  document.querySelectorAll('.step').forEach(sec => { sec.hidden = +sec.dataset.step !== n; });
+  if (!opts.fromPop){ try { history.pushState({ ufeStep:n }, ''); } catch(e){} }
+  renderAll();
+  const h = $('hStep' + n);
+  if (h){ h.focus({ preventScroll:true }); }
+  window.scrollTo(0, 0);
+}
+function renderProgress(){
+  const s = state.step;
+  if (s <= 6){
+    $('progTxt').innerHTML = `ขั้น ${s}/6<span>${STEPS[s]}</span>`;
+    $('progBar').setAttribute('aria-valuenow', s);
+    $('progFill').style.width = (s/6*100).toFixed(1) + '%';
+  } else {
+    $('progTxt').innerHTML = `เสร็จแล้ว<span>${STEPS[7]}</span>`;
+    $('progBar').setAttribute('aria-valuenow', 6);
+    $('progFill').style.width = '100%';
+  }
+  const p = prevStep();
+  $('btnBack').hidden = p === null;
+  $('btnBack').textContent = p === 6 && state.step === 7 ? '‹ หน้าโอนเงิน' : '‹ ย้อนกลับ';
+}
+function renderCartChip(c){
+  const chip = $('cartChip');
+  if (state.step > 2){ chip.hidden = true; return; }
+  chip.hidden = false;
+  const parts = PRODUCTS.filter(p => state.cart[p.key]).map(p => `เบอร์ ${p.size} ${p.tray ? 'ยกแผง' : 'แพ็ก ' + p.packEggs + ' ฟอง'} × ${state.cart[p.key]}`);
+  chip.textContent = parts.length ? `ในตะกร้า: ${parts.join(' · ')} (${c.eggs} ฟอง)` : 'ตะกร้ายังว่าง';
+}
+
+/* ===== ขั้น 1 ===== */
+function renderSizes(){
+  $('sizeList').innerHTML = CONFIG.sizes.map(s => {
+    const inCart = PRODUCTS.filter(p => p.size===s.code && state.cart[p.key]);
+    const badge = inCart.length ? `<span class="incart">✓ ในตะกร้า ${inCart.map(p => p.tray ? state.cart[p.key]+' แผง' : p.short+' ×'+state.cart[p.key]).join(' · ')}</span>` : '';
+    return `<button type="button" class="sizecard${inCart.length?' has':''}" data-size="${s.code}">
+      ${eggSvg(s)}
+      <span class="sc-main"><span class="sc-name">เบอร์ ${s.code}</span><span class="sc-w">${s.weight}</span>${packsOf(s.code).length ? '<span class="sc-x">มีแพ็กเล็ก 8/10/15 ฟอง</span>' : ''}${badge}</span>
+      <span class="sc-price">${baht(s.prices[0])}<small>/แผง</small><small>1–4 แผง</small></span>
+    </button>`;
+  }).join('');
+}
+
+/* ===== ขั้น 2 ===== */
+function stepperHtml(p, q){
+  const nm = `เบอร์ ${p.size} ${p.name}`;
+  return `<div class="stepper">
+    <button type="button" data-key="${p.key}" data-d="-1" aria-label="ลด ${nm}" ${q===0?'disabled':''}>−</button>
+    <output aria-live="polite" aria-label="จำนวน ${nm}">${q}</output>
+    <button type="button" class="plus" data-key="${p.key}" data-d="1" aria-label="เพิ่ม ${nm}" ${q>=CONFIG.maxQty?'disabled':''}>+</button>
+  </div>`;
+}
+function renderStep2(c){
+  const s = SIZE(state.curSize);
+  $('hStep2').textContent = `เบอร์ ${s.code} · จำนวนและราคา`;
+  $('sizeLine').innerHTML = `<span class="chip">เบอร์ ${s.code}</span><span class="chip">${s.weight}</span>`;
+  const ft = c.trays.fullTrays;
+  const active = tierFor(Math.max(ft,1));
+  const nt = nextTier(ft);
+  const tp = PRODUCTS.find(p => p.size===s.code && p.tray);
+  const q = state.cart[tp.key];
+  const tiers = CONFIG.trayTiers.map(t => `<li ${t===active?'aria-current="true"':''}>${t.label}<b>${baht(s.prices[t.idx])}</b>${t.wholesale?'ราคาส่ง':'ต่อแผง'}${t===active && ft>0?'<span class="now">ราคาที่ได้</span>':''}</li>`).join('');
+  const nudge = ft===0 ? `ยิ่งหลายแผงยิ่งถูก นับรวมแผงทุกเบอร์ในออเดอร์`
+    : nt ? `ตอนนี้รวม ${ft} แผง · อีก ${nt.min-ft} แผง ได้ราคาขั้น ${nt.label}${nt.wholesale?' (ราคาส่ง)':''}`
+    : `รวม ${ft} แผง ได้ราคาส่งแล้ว`;
+  $('trayCard').innerHTML = `<article class="box item trayitem">
+      ${traySvg()}
+      <div><h3>ยกแผง 30 ฟอง · เบอร์ ${s.code}</h3>
+        <div class="price">${baht(s.prices[active.idx])} <small>/แผง</small></div>
+        <div class="sub">เฉลี่ยฟองละ ${(s.prices[active.idx]/30).toFixed(2)} บาท</div>
+        <ul class="tiers" aria-label="ราคาเบอร์ ${s.code} ตามจำนวนแผงรวมทุกเบอร์">${tiers}</ul>
+        <p class="nudge">${nudge}</p>
+      </div>
+      ${stepperHtml(tp,q)}</article>`;
+  const packs = PRODUCTS.filter(p => p.size===s.code && !p.tray);
+  $('packArea').innerHTML = packs.length ? `<div class="step" style="gap:12px">` + packs.map(p => `<article class="box item">
+      ${packSvg(p.packEggs)}
+      <div><h3>${p.name}</h3>
+        ${p.tagline ? `<div class="tagline">${p.tagline}</div>` : ''}
+        <div class="price">${baht(p.baht)}</div>
+        <div class="sub">เบอร์ ${s.code} · ฟองละ ${(p.baht/p.packEggs).toFixed(2)} บาท · ไม่ร่วมส่วนลดตามจำนวนแผง</div>
+      </div>
+      ${stepperHtml(p,state.cart[p.key])}</article>`).join('') + `</div>`
+    : `<p class="packnote">แพ็กเล็กมีเฉพาะเบอร์ 2 · เบอร์ ${s.code} ขายเป็นแผง 30 ฟอง</p>`;
+  // ในตะกร้า
+  $('cartList').innerHTML = c.items.length ? c.items.map(it => {
+    const other = it.size !== s.code;
+    return `<li><span>${itemLabel(it)} × ${it.qty}${unitTxt(it)}<br><span class="amt">${bahtS(it.lineTotalSatang)}</span></span>${other ? `<button type="button" class="btn2 small" data-cursize="${it.size}" aria-label="แก้จำนวนเบอร์ ${it.size}">แก้</button>` : ''}</li>`;
+  }).join('') : '<li>ยังไม่มีไข่ในตะกร้า กด + เพื่อเลือกจำนวน</li>';
+}
+
+/* ===== ไอติม ชวนคุ้ม =====
+   แสดงทีละข้อความ ตามลำดับ: 1 เปลี่ยนแพ็กเล็กเป็นแผง > 2 โอนก่อน (มีแผง + เก็บปลายทาง) > 3 ขั้นราคาถัดไป (ขาด ≤3 แผง)
+   > 4 คืนรังไข่ (มีแผงเต็ม แต่ยังไม่คืน) > 5 เคล็ดลับ · ทุกตัวเลขมาจาก priceCart ของตะกร้าจริงเทียบกับตะกร้าที่เปลี่ยนแล้ว
+   ขั้นราคาถัดไป: เพิ่มแผงของเบอร์ที่กำลังเลือก · แพ็กเล็ก (เบอร์ 2) เปลี่ยนเป็นแผงเบอร์ 2
+   ปุ่มเปลี่ยนสถานะจริงแล้ววาดหน้าใหม่ · data-kind บน #coach ใช้ตรวจในชุดทดสอบ */
+function renderCoach(c){
+  const box = $('coach'), btn = $('coachBtn'), msg = $('coachMsg');
+  const cur = SIZE(state.curSize);
+  const curTray = keyOf(cur.code, EGGS_PER_TRAY);
+  const small = PRODUCTS.filter(p => !p.tray);
+  const smallEggs = small.reduce((n,p) => n + p.packEggs*state.cart[p.key], 0);
+  const opts = curOpts();
+  const ft = c.trays.fullTrays, nt = nextTier(ft);
+  const show = (kind, text, label, act) => {
+    box.dataset.kind = kind;
+    msg.textContent = text;
+    if (label){
+      btn.textContent = label; btn.classList.remove('hidden');
+      btn.onclick = () => { act(); renderAll(); const nb = $('coachBtn'); if (!nb.classList.contains('hidden')) nb.focus(); else { box.tabIndex = -1; box.focus(); } };
+    } else { btn.classList.add('hidden'); btn.onclick = null; }
+  };
+  // 1) แพ็กเล็ก → ยกแผง (แพ็กเล็กมีเฉพาะเบอร์ 2 จึงเปลี่ยนเป็นแผงเบอร์ 2) ถ้าจ่ายน้อยกว่า/เท่ากัน หรือได้ไข่เพิ่มโดยจ่ายเพิ่มไม่เกิน 30 บาท
+  if (smallEggs > 0){
+    const n = Math.ceil(smallEggs/30);
+    const packSize = small.find(p => state.cart[p.key]).size;
+    const trayKey = keyOf(packSize, EGGS_PER_TRAY);
+    const alt = Object.assign({}, state.cart); small.forEach(p => alt[p.key] = 0); alt[trayKey] = Math.min(CONFIG.maxQty, alt[trayKey] + n);
+    const a = priceCart(stateCart(alt), opts);
+    const diff = c.total - a.total, extra = a.eggs - c.eggs;
+    if (alt[trayKey] === state.cart[trayKey] + n && (diff >= 0 || (extra > 0 && -diff <= 30))){
+      const money = diff > 0 ? `ประหยัด ${baht(diff)}` : diff === 0 ? 'จ่ายเท่าเดิม' : `จ่ายเพิ่มแค่ ${baht(-diff)}`;
+      show('tray',
+        `แพ็กเล็กรวม ${smallEggs} ฟอง ไอติมว่าเปลี่ยนเป็นยกแผงเบอร์ ${packSize} ${n} แผง (${n*30} ฟอง) คุ้มกว่านะคะ ยอดชำระ ${baht(a.total)} ${money}` +
+        (extra > 0 ? ` แถมได้ไข่เพิ่ม ${extra} ฟองค่ะ` : ' ค่ะ'),
+        `เปลี่ยนเป็นยกแผง ${n} แผง`,
+        () => { small.forEach(p => state.cart[p.key]=0); state.cart[trayKey] += n; });
+      return;
+    }
+  }
+  // 2) มีแผง + เก็บเงินปลายทาง → โอนก่อน (เทียบยอดจริงทั้งก้อน รวมค่าส่ง COD)
+  if (ft > 0 && state.pay === 'COD'){
+    const a = priceCart(stateCart(), Object.assign({}, opts, { payment:'PREPAY_TRANSFER' }));
+    const save = c.total - a.total;
+    if (save > 0){
+      const parts = [];
+      if (a.prepay) parts.push(`ลด ${CONFIG.prepayPct}% ${baht(a.prepay)}`);
+      if (c.fee) parts.push(`ไม่เสียค่าส่ง ${baht(c.fee)}`);
+      const lead = a.prepay ? `โอนก่อนลด ${CONFIG.prepayPct}% ประหยัด ${baht(save)}` : `โอนก่อนส่งฟรี ประหยัด ${baht(save)}`;
+      show('prepay',
+        `${lead} นะคะ${parts.length > 1 ? ` (${parts.join(' + ')})` : ''} ยอดชำระจาก ${baht(c.total)} เหลือ ${baht(a.total)} ค่ะ` +
+        (a.tier.wholesale ? ' · แผงราคาส่งไม่ร่วมส่วนลด 2% นะคะ' : ''),
+        'เปลี่ยนเป็นโอนก่อน (พร้อมเพย์)',
+        () => { state.pay = 'PREPAY_TRANSFER'; });
+      return;
+    }
+  }
+  // 3) ใกล้ขั้นราคาถัดไป (ขาดไม่เกิน 3 แผง) · เพิ่มแผงของเบอร์ที่กำลังเลือก
+  const tierMsg = () => {
+    const need = nt.min - ft;
+    const alt = Object.assign({}, state.cart); alt[curTray] = state.cart[curTray] + need;
+    const a = priceCart(stateCart(alt), opts);
+    return { need, text: `อีก ${need} แผง ได้ราคาขั้น ${nt.label} ทุกแผงทุกเบอร์ (เบอร์ ${cur.code} จาก ${baht(cur.prices[c.tier.idx])} เหลือ ${baht(cur.prices[nt.idx])}/แผง) ยอดชำระจะเป็น ${baht(a.total)} ค่ะ` +
+      (nt.wholesale ? ' · ราคาส่งไม่ร่วมส่วนลดโอนก่อนนะคะ' : '') };
+  };
+  if (ft > 0 && nt && nt.min - ft <= 3 && state.cart[curTray] + (nt.min - ft) <= CONFIG.maxQty){
+    const t = tierMsg();
+    show('tier', t.text, `เพิ่มเบอร์ ${cur.code} อีก ${t.need} แผง`, () => { state.cart[curTray] += t.need; });
+    return;
+  }
+  // 4) สั่งยกแผงแต่ยังไม่คืนรังไข่
+  if (ft > 0 && state.swap === 0){
+    const a = priceCart(stateCart(), Object.assign({}, opts, { ppTraysReturned:ft }));
+    show('swap',
+      `มีรังไข่พลาสติกเปล่าไหมคะ คืนรังไข่พลาสติก ลดใบละ ${baht(CONFIG.ppTrayDiscountBaht)} คืนได้ ${ft} ใบ ประหยัด ${baht(c.total - a.total)} ยอดชำระเหลือ ${baht(a.total)} ค่ะ`,
+      `คืนรังไข่ ${ft} ใบ`,
+      () => { state.swap = ft; });
+    return;
+  }
+  // 5) เคล็ดลับ
+  if (ft > 0 && nt && state.cart[curTray] + (nt.min - ft) <= CONFIG.maxQty){ show('tip', tierMsg().text); return; }
+  if (ft > 0 && c.tier.wholesale){
+    show('tip', `ได้ราคาส่งแล้วค่ะ เบอร์ ${cur.code} ${baht(cur.prices[c.tier.idx])}/แผง` + (c.trays.ppTraysReturned ? ' ขอบคุณที่คืนรังไข่นะคะ' : '') +
+      (state.pay === 'PREPAY_TRANSFER' ? ' · แผงราคาส่งไม่ร่วมส่วนลดโอนก่อนนะคะ' : ''));
+    return;
+  }
+  if (ft > 0){ show('tip', `ขอบคุณที่คืนรังไข่นะคะ ยิ่งหลายแผงยิ่งถูก นับรวมทุกเบอร์ค่ะ`); return; }
+  if (packsOf(cur.code).length){
+    show('tip', `ยกแผง 30 ฟอง เบอร์ ${cur.code} เฉลี่ยฟองละ ${(cur.prices[0]/30).toFixed(2)} บาท คุ้มกว่าแพ็กเล็กนะคะ ยิ่งหลายแผงยิ่งถูกค่ะ`);
+  } else {
+    show('tip', `ยกแผง 30 ฟอง เบอร์ ${cur.code} เฉลี่ยฟองละ ${(cur.prices[0]/30).toFixed(2)} บาท ยิ่งหลายแผงยิ่งถูก นับรวมทุกเบอร์ในออเดอร์ค่ะ`);
+  }
+}
+
+/* ===== ขั้น 3 ===== */
+function phoneOk(){ const d = $('custPhone').value.replace(/\D/g,''); return /^0[689]\d{8}$/.test(d); }
+function renderStep3(){
+  const pickup = !!curZone().pickup;
+  $('recv').innerHTML = [['deliver','🛵 ส่งถึงบ้าน', !pickup], ['pickup','🏪 รับเองที่ร้าน', pickup]]
+    .map(r => `<button type="button" class="choice" data-recv="${r[0]}" aria-pressed="${r[2]}">${r[1]}</button>`).join('');
+  $('addrBlock').classList.toggle('hidden', pickup);
+  $('pickupNote').classList.toggle('hidden', !pickup);
+  renderPin();
+}
+function setGpsFromNudge(){
+  const b = state.gpsBase; if (!b) { state.gps = null; return; }
+  const lat = b.lat + state.nudge.n / M_PER_DEG_LAT;
+  const lng = b.lng + state.nudge.e / (M_PER_DEG_LAT * Math.cos(b.lat * Math.PI / 180));
+  state.gps = { lat:+lat.toFixed(6), lng:+lng.toFixed(6), accuracyM:b.accuracyM };
+}
+function movedText(){
+  const n = state.nudge.n, e = state.nudge.e;
+  if (!n && !e) return 'หมุดอยู่ที่จุดที่ GPS หาได้';
+  const parts = [];
+  if (n) parts.push(`${n > 0 ? '↑' : '↓'}${Math.abs(n)} ม.`);
+  if (e) parts.push(`${e > 0 ? '→' : '←'}${Math.abs(e)} ม.`);
+  return 'ขยับแล้ว ' + parts.join(' ');
+}
+function renderPin(){
+  const wrap = $('pinWrap');
+  if (!state.gpsBase){ wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  // แผนผังจำลอง: 2 px ต่อ 1 เมตร · จุดวงกลม = ตำแหน่งที่ GPS หาได้ · หมุดแดง = ตำแหน่งที่ส่ง
+  const cx = 160, cy = 96, k = 2;
+  const px = Math.max(-140, Math.min(140, state.nudge.e * k)), py = Math.max(-74, Math.min(74, -state.nudge.n * k));
+  const x = cx + px, y = cy + py;
+  let grid = '';
+  for (let gx = 0; gx <= 320; gx += 40) grid += `<line x1="${gx}" y1="0" x2="${gx}" y2="180" stroke="#E5E7EB" stroke-width="1"/>`;
+  for (let gy = 16; gy <= 180; gy += 40) grid += `<line x1="0" y1="${gy}" x2="320" y2="${gy}" stroke="#E5E7EB" stroke-width="1"/>`;
+  $('pinBox').innerHTML = `<rect width="320" height="180" fill="#F3F4F6"/>${grid}
+    <rect x="0" y="80" width="320" height="18" fill="#D1D5DB"/><rect x="196" y="0" width="16" height="180" fill="#D1D5DB"/>
+    <text x="298" y="22" font-size="22" font-weight="700" fill="#1F2937" text-anchor="middle">น</text>
+    <path d="M300 28 l-6 10 h12 z" fill="#1F2937"/>
+    <circle cx="${cx}" cy="${cy}" r="9" fill="none" stroke="#1E3A8A" stroke-width="3" stroke-dasharray="4 3"/>
+    <g transform="translate(${x} ${y})"><path d="M0 0 C-4 -10 -14 -16 -14 -28 A14 14 0 0 1 14 -28 C14 -16 4 -10 0 0 Z" fill="#B91C1C" stroke="#7F1D1D" stroke-width="1.5"/><circle cx="0" cy="-28" r="5.5" fill="#fff"/></g>`;
+  $('pinMoved').textContent = movedText();
+  $('pinCoord').textContent = `พิกัดที่ส่ง ${state.gps.lat.toFixed(6)}, ${state.gps.lng.toFixed(6)}`;
+}
+
+/* ===== ขั้น 4 ===== */
+function renderStep4(c){
+  $('zones').innerHTML = CONFIG.zones.map(z => `<button type="button" class="choice" data-zone="${z.code}" aria-pressed="${z.code===state.zone}"><span>${z.name}</span><small>${z.minSatang ? 'ขั้นต่ำ '+bahtS(z.minSatang) : 'ไม่มีขั้นต่ำ'}</small></button>`).join('');
+  const zone = curZone();
+  if (!zone.slots.includes(state.slot)) state.slot = zone.slots[0];
+  $('lblSlot').textContent = zone.pickup ? 'เวลารับที่ร้าน' : 'รอบส่ง';
+  $('slots').innerHTML = zone.slots.map(s => `<button type="button" class="choice" data-slot="${s}" aria-pressed="${s===state.slot}"><span>${CONFIG.slotInfo[s].name} ${CONFIG.slots[s]} น.</span><small>${CONFIG.slotInfo[s].note}</small></button>`).join('');
+  $('slotNote').textContent = zone.code==='DKY' ? 'พื้นที่นี้ส่งเฉพาะรอบสายและรอบบ่าย' : '';
+  const w = $('minWarn');
+  if (c.belowMin){
+    w.textContent = `${zone.name} สั่งขั้นต่ำ ${bahtS(zone.minSatang)} · ตอนนี้ค่าไข่ ${baht(c.goods)} ขาดอีก ${bahtS(zone.minSatang - c.goods*100)} (เพิ่มไข่ได้ที่ขั้น 2)`;
+    w.classList.remove('hidden');
+  } else w.classList.add('hidden');
+}
+
+/* ===== ขั้น 5 ===== */
+function slotText(zone, slot){ return zone.pickup ? `รับที่ร้าน ${CONFIG.slots.PICKUP} น.` : `${CONFIG.slotInfo[slot].name} ${CONFIG.slots[slot]} น.`; }
+function renderStep5(c){
+  const zone = curZone(), d = deliveryInfo();
+  $('sumItems').innerHTML = c.items.length ? '<ul>' + c.items.map(it => `<li>${itemLabel(it)} × ${it.qty}</li>`).join('') + `</ul><p>รวม ${trayText(c.trays)}</p>` : '<p>ยังไม่มีไข่ในตะกร้า</p>';
+  const name = $('custName').value.trim(), phone = $('custPhone').value.trim(), addr = $('custAddr').value.trim();
+  $('sumWho').innerHTML = `<p>${esc(name || '—')} · ${esc(phone || '—')}</p>` + (zone.pickup ? '<p>รับเองที่ร้าน</p>' :
+    `<p>${esc(addr || '—')}</p><p>${state.gps ? `📍 มีพิกัด GPS${state.nudge.n||state.nudge.e ? ' (' + movedText() + ')' : ''}` : 'ไม่มีพิกัด GPS (ไม่บังคับ)'}</p>`);
+  $('sumWhen').innerHTML = `<p><b>${d.dateTxt}</b></p><p>${esc(zone.name)} · ${slotText(zone, state.slot)}</p>`;
+  const allWholesale = c.tier.wholesale && c.prepayBase === 0 && c.goods > 0;
+  const pays = [
+    { code:'PREPAY_TRANSFER', t:'โอนก่อนผ่าน QR พร้อมเพย์', s: allWholesale ? 'ราคาส่งไม่ร่วมลด 2% · ส่งฟรี' : `ลด ${CONFIG.prepayPct}% · ส่งฟรี` },
+    { code:'COD', t: zone.pickup ? 'จ่ายเงินสดตอนรับที่ร้าน' : 'จ่ายตอนรับไข่', s: zone.pickup ? 'ไม่มีค่าส่ง' : `+${baht(CONFIG.codFeeBaht)} ค่าส่ง` }
+  ];
+  $('pays').innerHTML = pays.map(p => `<button type="button" class="choice" data-pay="${p.code}" aria-pressed="${p.code===state.pay}"><span>${p.t}</span><small>${p.s}</small></button>`).join('');
+  const rows = [];
+  c.items.forEach(it => rows.push(['', `${itemLabel(it)} × ${it.qty}${unitTxt(it)}`, bahtS(it.lineTotalSatang)]));
+  if (c.eggs){
+    rows.push(['sep', 'ค่าไข่', baht(c.goods)]);
+    if (c.prepay) rows.push(['', `ลดโอนก่อน ${CONFIG.prepayPct}%${c.tier.wholesale ? ' (เฉพาะแพ็กเล็ก)' : ''}`, '−'+baht(c.prepay)]);
+    if (c.ppOff) rows.push(['', `คืนรังไข่พลาสติก ${c.trays.ppTraysReturned} ใบ`, '−'+baht(c.ppOff)]);
+    rows.push(['', zone.pickup ? 'ค่าส่ง (รับเอง)' : 'ค่าส่ง', c.fee ? baht(c.fee) : 'ฟรี']);
+  }
+  rows.push(['total', 'ยอดชำระ', baht(c.total)]);
+  $('sumBody').innerHTML = rows.map(r => `<tr class="${r[0]}"><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+  const parts = [];
+  if (c.tierDisc) parts.push(`ราคาขั้นบันไดประหยัดแล้ว ${baht(c.tierDisc)} (เทียบราคา 1–4 แผง)`);
+  if (state.pay==='PREPAY_TRANSFER' && c.prepayBase > 0) parts.push('ส่วนลดโอนก่อนปัดเศษลงเป็นบาท');
+  if (state.pay==='PREPAY_TRANSFER' && c.tier.wholesale) parts.push('แผงราคาส่งไม่ร่วมส่วนลดโอนก่อน');
+  $('sumNote').textContent = parts.join(' · ');
+  $('swapQty').textContent = state.swap;
+  $('swapMinus').disabled = state.swap===0;
+  $('swapPlus').disabled = state.swap>=c.trays.fullTrays;
+  $('swapNote').textContent = c.trays.fullTrays ? `คืนได้ไม่เกิน ${c.trays.fullTrays} ใบ (เท่าจำนวนแผงเต็มที่สั่ง)` : 'ใช้ได้เมื่อสั่งแบบยกแผง';
+}
+
+/* ===== ตรวจความครบ ===== */
+function whyFor(step, c){
+  const why = [];
+  if (step >= 1 && c.eggs===0) why.push(step === 1 ? 'แตะเลือกเบอร์ไข่ที่ต้องการ' : 'กด + เพื่อเลือกจำนวนไข่');
+  if (step >= 3){
+    if (!$('custName').value.trim()) why.push('กรอกชื่อผู้รับ');
+    if (!phoneOk()) why.push('กรอกเบอร์โทรให้ถูก');
+    if (!c.zone.pickup && !$('custAddr').value.trim()) why.push('กรอกที่อยู่');
+  }
+  if (step >= 4 && c.belowMin) why.push(`สั่งขั้นต่ำ ${bahtS(c.zone.minSatang)} (ขาดอีก ${bahtS(c.zone.minSatang - c.goods*100)})`);
+  if (step >= 5 && !$('consent').checked) why.push('กรุณาติ๊กยินยอมให้ใช้ข้อมูล');
+  return why;
+}
+const validate = c => whyFor(5, c);
+
+/* ===== ขั้น 6–7 (หลังส่งออเดอร์) ===== */
+let qrSvgText = '';
+function renderStep6(){
+  const sub = state.submitted; if (!sub) return;
+  const amountSatang = sub.view.financial_metrics.net_amount_satang;
+  $('payAmt').textContent = bahtS(amountSatang);
+  $('payOid').textContent = sub.orderId;
+  qrSvgText = '';
+  // วาด QR เฉพาะเมื่อมีโมดูล PromptPay จริงและเจ้าของตั้งเลขพร้อมเพย์แล้ว · ไม่วาด QR จ่ายเงินปลอม
+  if (typeof PromptPay.payload === 'function' && CONFIG.promptpay.id){
+    try {
+      const pl = PromptPay.payload(CONFIG.promptpay.id, amountSatang);
+      if (typeof pl === 'string' && pl) qrSvgText = QR.toSVG(QR.encode(pl, 'M'), 4, ` role="img" aria-label="QR พร้อมเพย์ สำหรับโอน ${bahtS(amountSatang)}"`);
+    } catch (e){ qrSvgText = ''; }
+  }
+  if (qrSvgText){
+    $('qrArea').innerHTML = `<div class="qrbox" id="qrBox">${qrSvgText}</div>`;
+    $('qrNote').textContent = (CONFIG.promptpay.name ? `ชื่อบัญชี ${CONFIG.promptpay.name} · ` : '') + 'ตรวจยอดในแอปธนาคารให้ตรงก่อนกดโอน';
+    $('howSave').textContent = 'กดปุ่มด้านล่าง หรือแคปหน้าจอไว้';
+    $('howScan').textContent = 'เลือกสแกน แล้วเลือกรูป QR ที่บันทึกไว้';
+    $('btnSaveQr').classList.remove('hidden');
+  } else {
+    $('qrArea').innerHTML = `<div class="qrbox ph" id="qrBox" role="img" aria-label="ที่สำหรับ QR พร้อมเพย์ของร้าน ยังไม่มี"><b>[QR พร้อมเพย์ร้าน]</b><span>ร้านยังไม่ได้ตั้ง QR ในหน้านี้</span></div>`;
+    $('qrNote').textContent = 'ร้านจะส่งรายละเอียดการโอนเงินให้ทางโทรศัพท์หรือข้อความ ตามเบอร์ที่กรอกไว้';
+    $('howSave').textContent = 'เมื่อได้รับ QR จากร้าน ให้บันทึกรูปไว้';
+    $('howScan').textContent = 'เลือกสแกน แล้วเลือกรูป QR ที่บันทึกไว้ ตรวจยอดให้ตรง';
+    $('btnSaveQr').classList.add('hidden');
+  }
+}
+function renderStep7(){
+  const sub = state.submitted; if (!sub) return;
+  const v = sub.view, o = v.source_order, zone = CONFIG.zones.find(z => z.code === o.delivery.zoneCode);
+  $('hStep7').textContent = sub.mode === 'sent' ? 'สั่งไข่สำเร็จ ขอบคุณค่ะ' : 'สั่งสำเร็จ (โหมดตัวอย่าง)';
+  $('previewNote').classList.toggle('hidden', sub.mode === 'sent');
+  $('okOid').textContent = sub.orderId;
+  $('okItems').innerHTML = '<ul style="margin:0;padding-left:20px;font-size:17px">' + o.items.map(it => `<li>${itemLabel(it)} × ${it.qty} · ${bahtS(it.lineTotalSatang)}</li>`).join('') + '</ul>' +
+    `<p style="margin:8px 0 0;font-size:19px;font-weight:700">ยอดชำระ ${bahtS(o.pricing.totalSatang)} · ${sub.pay === 'PREPAY_TRANSFER' ? 'โอนก่อนผ่านพร้อมเพย์' : (zone.pickup ? 'จ่ายเงินสดตอนรับ' : 'จ่ายตอนรับไข่')}</p>`;
+  $('okWhen').innerHTML = `<p style="margin:0"><b>${sub.dateTxt}</b></p><p style="margin:0">${esc(zone.name)} · ${slotText(zone, sub.slot)}</p>` +
+    (o.delivery.address ? `<p style="margin:0">${esc(o.delivery.address)}</p>` : '');
+  const tl = [
+    ['สั่งแล้ว', sub.atTxt, true],
+    sub.pay === 'PREPAY_TRANSFER' ? ['ร้านตรวจยอดโอน', 'หลังได้รับสลิปหรือยอดเข้า', false] : ['ร้านยืนยันออเดอร์', 'ร้านอาจโทรถามถ้าข้อมูลไม่ครบ', false],
+    [`${cutTxt()} ปิดรับออเดอร์`, `แก้ไข/ยกเลิกได้ก่อนเวลานี้ (${sub.editByTxt})`, false],
+    ['จัดไข่ลงรัง', zone.pickup ? 'คัดและแพ็กตามเบอร์ที่สั่ง ก่อนเวลารับ' : 'คัดและแพ็กตามเบอร์ที่สั่ง ก่อนรถออกส่ง', false],
+    zone.pickup ? ['มารับที่ร้าน', `${sub.dateTxt} · ${CONFIG.slots.PICKUP} น.`, false] : ['ส่งถึงบ้าน', `${sub.dateTxt} · ${CONFIG.slotInfo[sub.slot].name} ${CONFIG.slots[sub.slot]} น.`, false]
+  ];
+  $('okTl').innerHTML = tl.map(t => `<li class="${t[2]?'done':''}"><b>${t[0]}${t[2]?' ✓':''}</b><span>${esc(t[1])}</span></li>`).join('');
+  $('okEditH').textContent = `แก้ไขก่อน ${cutTxt()}`;
+  $('okEdit').textContent = `ถ้าต้องการแก้ไขหรือยกเลิก โทรหาร้านก่อน ${cutTxt()} ${sub.editByTxt} · หน้านี้ยังแก้ไขออเดอร์ที่ส่งแล้วไม่ได้`;
+  const ph = CONFIG.shopPhone.replace(/\D/g,'');
+  $('shopCall').innerHTML = ph ? `<a class="shopcall" href="tel:${ph}">📞 โทรหาร้าน ${esc(CONFIG.shopPhone)}</a>` : `<div class="shopcall">📞 โทรหาร้าน [เบอร์ร้าน]</div>`;
+  $('btnBackPay').classList.toggle('hidden', sub.pay !== 'PREPAY_TRANSFER');
+}
+
+/* ===== แถบล่าง ===== */
+function renderBar(c){
+  const s = state.step, btn = $('btnNext');
+  $('bar').hidden = s === 7;
+  if (s <= 4){
+    $('barLbl').textContent = `ค่าไข่ · ${c.eggs} ฟอง`;
+    $('barTotal').textContent = baht(c.goods);
+    const why = whyFor(s, c);
+    $('barWhy').textContent = why[0] || '';
+    btn.textContent = 'ต่อไป ›';
+    btn.disabled = why.length > 0;
+  } else if (s === 5){
+    $('barLbl').textContent = `ยอดชำระ · ${c.eggs} ฟอง`;
+    $('barTotal').textContent = baht(c.total);
+    const why = validate(c);
+    $('barWhy').textContent = why[0] || '';
+    btn.textContent = `ยืนยันสั่งไข่ ${baht(c.total)}`;
+    btn.disabled = why.length > 0 || state.sending;
+  } else if (s === 6 && state.submitted){
+    $('barLbl').textContent = 'ยอดที่ต้องโอน';
+    $('barTotal').textContent = bahtS(state.submitted.view.financial_metrics.net_amount_satang);
+    $('barWhy').textContent = '';
+    btn.textContent = 'ต่อไป: สรุปออเดอร์';
+    btn.disabled = false;
+  }
+}
+
+function renderAll(){
+  const c = calc();
+  renderProgress(); renderCartChip(c); renderCutoff();
+  renderSizes(); renderStep2(c); renderCoach(c); renderStep3(); renderStep4(c); renderStep5(c);
+  renderStep6(); renderStep7(); renderBar(c);
+  return c;
+}
+const renderSummary = renderAll;
+
+/* ===== เหตุการณ์ ===== */
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t || t.disabled) return;
+  const d = t.dataset;
+  if (d.size){ state.curSize = d.size; goTo(2); return; }
+  if (d.cursize){ state.curSize = d.cursize; renderAll(); $('hStep2').focus(); return; }
+  if (d.goto){ goTo(+d.goto); return; }
+  if (d.key){
+    state.cart[d.key] = Math.max(0, Math.min(CONFIG.maxQty, state.cart[d.key] + (+d.d)));
+    renderAll();
+    const same = document.querySelector(`button[data-key="${d.key}"][data-d="${d.d}"]`);
+    (same && !same.disabled ? same : document.querySelector(`button[data-key="${d.key}"]:not(:disabled)`))?.focus();
+    return;
+  }
+  if (d.nudge){
+    const m = CONFIG.gpsNudgeM;
+    if (d.nudge==='n') state.nudge.n += m; if (d.nudge==='s') state.nudge.n -= m;
+    if (d.nudge==='e') state.nudge.e += m; if (d.nudge==='w') state.nudge.e -= m;
+    setGpsFromNudge(); renderAll(); return;
+  }
+  let sel = null;
+  if (d.recv){
+    if (d.recv === 'pickup'){ if (state.zone !== 'PU') state.prevZone = state.zone; state.zone = 'PU'; }
+    else if (state.zone === 'PU') state.zone = state.prevZone || 'WRN';
+    sel = `[data-recv="${d.recv}"]`;
+  }
+  if (d.zone){ if (d.zone !== 'PU') state.prevZone = d.zone; state.zone = d.zone; sel = `[data-zone="${d.zone}"]`; }
+  if (d.slot){ state.slot = d.slot; sel = `[data-slot="${d.slot}"]`; }
+  if (d.pay){ state.pay = d.pay; sel = `[data-pay="${d.pay}"]`; }
+  if (sel){ renderAll(); document.querySelector(sel)?.focus(); }
+});
+$('btnMoreSize').onclick = () => goTo(1);
+$('btnBack').onclick = () => { const p = prevStep(); if (p) goTo(p); };
+$('btnBackPay').onclick = () => goTo(6);
+$('nudgeReset').onclick = () => { state.nudge = { n:0, e:0 }; setGpsFromNudge(); renderAll(); };
+$('swapMinus').onclick = () => { state.swap = Math.max(0, state.swap-1); renderAll(); };
+$('swapPlus').onclick = () => { state.swap += 1; renderAll(); };
+['custName','custAddr','consent'].forEach(id => $(id).addEventListener('input', () => renderAll()));
+$('consent').addEventListener('change', () => renderAll());
+$('custPhone').addEventListener('input', () => { $('phoneErr').classList.add('hidden'); renderAll(); });
+$('custPhone').addEventListener('blur', () => { if ($('custPhone').value.trim() && !phoneOk()) $('phoneErr').classList.remove('hidden'); });
+$('btnNext').onclick = () => {
+  const c = calc(), s = state.step;
+  if (s <= 5 && whyFor(s, c).length) return;
+  if (s === 1){
+    if (!PRODUCTS.some(p => p.size === state.curSize && state.cart[p.key])) state.curSize = c.items[0].size;
+    goTo(2);
+  } else if (s <= 4) goTo(s + 1);
+  else if (s === 5){ if (state.sending) return; pending = null; submitOrderToPipeline(); }
+  else if (s === 6) goTo(7);
+};
+$('btnNew').onclick = () => {
+  Object.keys(state.cart).forEach(k => state.cart[k] = 0);
+  state.swap = 0; state.pay = 'PREPAY_TRANSFER'; state.submitted = null; pending = null;
+  $('consent').checked = false; $('slip').value = ''; $('slipName').classList.add('hidden');
+  try { history.replaceState({ ufeStep:1 }, ''); } catch(e){}
+  goTo(1, { fromPop:true });
+};
+// ปุ่มย้อนกลับของมือถือ/เบราว์เซอร์ ทำงานเหมือนปุ่ม "ย้อนกลับ" ในหน้า
+window.addEventListener('popstate', e => {
+  const s = e.state && e.state.ufeStep; if (!s) return;
+  if ((state.submitted && s < 6) || (!state.submitted && s >= 6)){ try { history.pushState({ ufeStep:state.step }, ''); } catch(err){} return; }
+  goTo(s, { fromPop:true });
+});
+
+/* GPS: ใช้ตำแหน่งจริงจากเครื่อง (ไม่บังคับ) · ขยับหมุดทีละ 10 ม. แปลงเป็นองศา (1° lat ≈ 111,320 ม. · lng คูณ cos(lat)) */
+$('btnGps').onclick = () => {
+  const msg = $('gpsMsg'), btn = $('btnGps');
+  msg.className = 'note';
+  if (!('geolocation' in navigator)){ msg.className='err'; msg.textContent='เครื่องนี้หาตำแหน่งไม่ได้ กรุณากรอกที่อยู่แทน'; return; }
+  btn.disabled = true; msg.textContent = 'กำลังหาตำแหน่ง… (ต้องกดอนุญาต)';
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude, longitude, accuracy } = pos.coords;
+    state.gpsBase = { lat:+latitude.toFixed(6), lng:+longitude.toFixed(6), accuracyM: Math.round(accuracy) };
+    state.nudge = { n:0, e:0 };
+    setGpsFromNudge();
+    msg.className = 'okmsg'; msg.textContent = `ได้ตำแหน่งแล้ว (คลาดเคลื่อนประมาณ ${state.gpsBase.accuracyM} ม.)`;
+    btn.textContent = '📍 หาตำแหน่งใหม่'; btn.disabled = false;
+    renderAll();
+  }, err => {
+    state.gps = null; state.gpsBase = null; state.nudge = { n:0, e:0 }; btn.disabled = false; msg.className = 'err';
+    msg.textContent = err.code===1 ? 'ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง กรอกที่อยู่แทนได้' : 'หาตำแหน่งไม่สำเร็จ ลองใหม่หรือกรอกที่อยู่แทน';
+    renderAll();
+  }, { enableHighAccuracy:true, timeout:15000, maximumAge:60000 });
+};
+
+/* แนบสลิป: ฉบับนี้แสดงชื่อไฟล์เท่านั้น ไม่อ่าน ไม่อัปโหลด ไม่เก็บรูป */
+$('slip').addEventListener('change', () => {
+  const f = $('slip').files && $('slip').files[0], el = $('slipName');
+  if (f){ el.textContent = `เลือกแล้ว: ${f.name}`; el.classList.remove('hidden'); }
+  else { el.textContent = ''; el.classList.add('hidden'); }
+});
+/* บันทึกรูป QR (เฉพาะเมื่อมี QR จริง) */
+$('btnSaveQr').onclick = () => {
+  if (!qrSvgText || !state.submitted) return;
+  const img = new Image(), url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qrSvgText);
+  img.onload = () => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 800;
+    const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0,0,800,800); g.imageSmoothingEnabled = false; g.drawImage(img, 0, 0, 800, 800);
+    const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = `ubonfreshegg-qr-${state.submitted.orderId}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  img.src = url;
+};
+
+function buildPayload(c){
+  const d = deliveryInfo();
+  const pickup = !!c.zone.pickup;
+  // เลขออเดอร์ชั่วคราว EF-YYYYMMDD-XXXXX (วันที่ไทย) เซิร์ฟเวอร์ต้องตรวจซ้ำว่าไม่ซ้ำ
+  const n = bangkokNow(), A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', rnd = new Uint8Array(5);
+  crypto.getRandomValues(rnd);
+  const orderId = `EF-${n.y}${String(n.m).padStart(2,'0')}${String(n.d).padStart(2,'0')}-` + [...rnd].map(x => A[x % A.length]).join('');
+  return {
+    schemaVersion:'eggfresh.order.v1', orderId, createdAt:new Date().toISOString(), channel:'web',
+    customer:{ type:'B2C', name:$('custName').value.trim(), phone:$('custPhone').value.replace(/\D/g,''), business:null, consentPdpa:true },
+    delivery:{ method: pickup ? 'pickup' : 'delivery', zoneCode:state.zone, date:d.iso, slot: pickup ? null : state.slot,
+      address: pickup ? null : $('custAddr').value.trim(), gps: pickup ? null : (state.gps ? Object.assign({}, state.gps) : null) },
+    items: c.items,
+    trays: c.trays,
+    pricing: c.pricing,
+    payment:{ method:state.pay, status:'PENDING', slipAssetId:null },
+    notes:null
+  };
+}
+/* ===== P0 · Data Pipeline =====
+   แหล่งความจริงเดียว: buildPayload() (ตรง eggfresh_order.schema.json ที่ backend ตรวจด้วย verifyPayload)
+   toPipelineView() แปลงเป็นโครงแบบ snake_case สำหรับ AI โลจิสติกส์ (LIFO) และ POS โดยไม่คำนวณใหม่
+   กติกา: เงินจริงอยู่ที่ฟิลด์ *_satang (จำนวนเต็ม) · ตัวเลขบาทมีไว้แสดงผล · ไข่นับเป็นฟองจำนวนเต็ม */
+const satangToBaht = s => Math.round(s) / 100;            // 13700 → 137 (แสดงผลเท่านั้น)
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() :
+  ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
+
+function toPipelineView(order, idempotencyKey){
+  const b2c = order.customer.type === 'B2C';
+  const pr = order.pricing, tr = order.trays;
+  const discountSatang = b2c ? pr.tierDiscountSatang + pr.prepayDiscountSatang + pr.ppTrayDiscountSatang : 0;
+  return {
+    schema_version: CONFIG.pipeline.schemaVersion,
+    order_id: order.orderId,                     // EF-YYYYMMDD-XXXXX (เซิร์ฟเวอร์ตรวจซ้ำว่าไม่ซ้ำ)
+    idempotency_key: idempotencyKey,             // UUID กันออเดอร์ซ้ำเมื่อกดส่งซ้ำหรือเน็ตหลุด
+    timestamp: order.createdAt,                  // ISO 8601 (UTC)
+    customer_role: order.customer.type,
+    customer_name: order.customer.name,
+    customer_phone: order.customer.phone,        // ตัวเลข 10 หลัก
+    business: order.customer.business,
+    consent_pdpa: order.customer.consentPdpa,
+    gps_location: order.delivery.gps ? { lat: order.delivery.gps.lat, lng: order.delivery.gps.lng, accuracy_m: order.delivery.gps.accuracyM } : null,
+    delivery: {
+      method: order.delivery.method, zone_code: order.delivery.zoneCode, date: order.delivery.date,
+      slot: order.delivery.slot, address: order.delivery.address
+    },
+    cart_items: order.items.map(i => ({
+      item_id: i.sku, size: i.size, pack_eggs: i.packEggs, qty: i.qty, eggs: i.eggs, tier: i.tier,
+      price: satangToBaht(i.unitPriceSatang), unit_price_satang: i.unitPriceSatang, line_total_satang: i.lineTotalSatang
+    })),
+    logistics_metrics: b2c ? {
+      total_eggs: tr.totalEggs,
+      full_trays: tr.fullTrays,                  // จำนวนรังไข่ 30 ฟองที่ต้องวาง (ใช้จัดรถ LIFO)
+      whole_trays: tr.wholeTrays, remainder_eggs: tr.remainderEggs,
+      exact_trays_fraction: `${tr.totalEggs}/30`, // ค่าแม่นยำ ไม่มีทศนิยมคลาดเคลื่อน
+      exact_trays: Math.round(tr.totalEggs * 100 / 30) / 100, // ปัด 2 ตำแหน่ง ใช้แสดงผลเท่านั้น
+      swap_trays_returned: tr.ppTraysReturned
+    } : null,
+    // สูตร: net = gross − tier − prepay − swap + fee  (goods = gross − tier = Σ line_total)
+    financial_metrics: b2c ? {
+      price_table_version: pr.priceTableVersion,
+      gross_amount_satang: pr.subtotalSatang,
+      tier_discount_satang: pr.tierDiscountSatang,
+      goods_amount_satang: pr.subtotalSatang - pr.tierDiscountSatang,
+      prepay_discount_satang: pr.prepayDiscountSatang,
+      swap_discount_satang: pr.ppTrayDiscountSatang,
+      discount_satang: discountSatang,
+      delivery_fee_satang: pr.deliveryFeeSatang,
+      net_amount_satang: pr.totalSatang,
+      // ตัวเลขบาทด้านล่างใช้แสดงผลเท่านั้น
+      gross_amount: satangToBaht(pr.subtotalSatang),
+      discount_applied: satangToBaht(discountSatang),
+      delivery_fee: satangToBaht(pr.deliveryFeeSatang),
+      net_amount: satangToBaht(pr.totalSatang)
+    } : null,
+    payment: { method: order.payment.method, status: order.payment.status },
+    quality_tags: [],                            // ทีม QC เติมจากบันทึกตรวจจริงของล็อตนั้น หน้าสั่งไข่ไม่ใส่เอง
+    source_order: order                          // ฉบับเต็มสำหรับ verifyPayload ฝั่งเซิร์ฟเวอร์
+  };
+}
+
+let pending = null;                             // เก็บในหน่วยความจำเท่านั้น ส่งซ้ำใช้ idempotency_key เดิม
+let lastSent = null;
+function finishOrder(mode, data){
+  const cur = pending, d = deliveryInfo();
+  state.submitted = {
+    mode, view:cur, orderId:(data && data.order_id) || cur.order_id, pay:cur.payment.method, slot:cur.delivery.slot || 'PICKUP',
+    dateTxt: new Date(cur.delivery.date + 'T00:00:00Z').toLocaleDateString('th-TH',{timeZone:'UTC',weekday:'long',day:'numeric',month:'short'}),
+    editByTxt: d.editByTxt,
+    atTxt: new Date(cur.timestamp).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) + ' น.'
+  };
+  lastSent = cur; pending = null;
+  const dlg = $('done'); if (dlg.open) dlg.close();
+  goTo(state.submitted.pay === 'PREPAY_TRANSFER' ? 6 : 7);
+}
+async function submitOrderToPipeline(){
+  if (state.sending) return { ok:false, reason:'busy' };
+  if (state.submitted) return { ok:false, reason:'already-submitted', orderId:state.submitted.orderId };
+  if (!pending){
+    const c = calc();
+    const why = validate(c); if (why.length) return { ok:false, reason:'invalid', errors:why };
+    pending = toPipelineView(buildPayload(c), uuid());
+  }
+  if (!CONFIG.pipeline.url){
+    // โหมดตัวอย่าง: ไม่ส่งข้อมูลออกนอกเครื่อง แต่เดินขั้นต่อไปให้ลูกค้าเห็น พร้อมป้ายบอกชัดว่ายังไม่ถึงร้าน
+    const cur = pending;
+    finishOrder('preview', null);
+    return { ok:true, mode:'preview', payload:cur };
+  }
+  const dlg = $('done');
+  if (!dlg.open){ if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', ''); }
+  const status = $('sendStatus'), retry = $('retrySend');
+  retry.classList.add('hidden');
+  const cur = pending;
+  state.sending = true; $('btnNext').disabled = true; $('closeDone').disabled = true; status.textContent = 'กำลังส่งออเดอร์…';
+  const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), CONFIG.pipeline.timeoutMs);
+  let ok = false;
+  try {
+    // text/plain เลี่ยง CORS preflight ของ Apps Script · ข้อมูลอยู่ใน body เท่านั้น ไม่ใส่ใน URL
+    const res = await fetch(CONFIG.pipeline.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(cur), signal: ctrl.signal, redirect:'follow' });
+    const data = await res.json().catch(e => { if (e.name === 'AbortError') throw e; return null; });
+    // ระบบหลังบ้านตอบ duplicate:true เมื่อได้ idempotency_key ซ้ำ = ออเดอร์นี้บันทึกไว้แล้ว ถือว่าสำเร็จ
+    if (!res.ok || !data || (data.ok !== true && data.duplicate !== true)) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    ok = true;
+    clearTimeout(t); state.sending = false; $('closeDone').disabled = false;
+    finishOrder('sent', data);
+    return { ok:true, mode:'sent', payload:cur, response:data };
+  } catch (e){
+    status.textContent = (e.name === 'AbortError' ? 'เน็ตช้า ส่งไม่ทัน' : 'ส่งไม่สำเร็จ') + ' · กดส่งอีกครั้งได้ ระบบจะไม่สร้างออเดอร์ซ้ำ';
+    retry.classList.remove('hidden');
+    return { ok:false, reason:'network', error:String(e.message || e) };
+  } finally {
+    if (!ok){
+      clearTimeout(t); state.sending = false; $('closeDone').disabled = false; renderAll();
+      (retry.classList.contains('hidden') ? $('closeDone') : retry).focus();
+    }
+  }
+}
+$('done').addEventListener('cancel', e => { if (state.sending) e.preventDefault(); });  // ห้ามปิดระหว่างส่ง
+$('retrySend').onclick = () => submitOrderToPipeline();
+$('closeDone').onclick = () => $('done').close();
+
+/* แถบล่างไม่บังเนื้อหา: เว้นที่ด้านล่างเท่าความสูงแถบจริง */
+const bar = $('bar');
+const fitBar = () => { document.body.style.paddingBottom = (bar.hidden ? 24 : bar.offsetHeight + 24) + 'px'; };
+if ('ResizeObserver' in window) new ResizeObserver(fitBar).observe(bar); else window.addEventListener('resize', fitBar);
+
+$('sampleBanner').hidden = !!CONFIG.pipeline.url;
+try { history.replaceState({ ufeStep:1 }, ''); } catch(e){}
+renderAll(); fitBar(); setInterval(() => { renderCutoff(); if (state.step === 5) renderStep5(calc()); }, 30000);
+new MutationObserver(fitBar).observe(bar, { attributes:true, attributeFilter:['hidden'] });
+
+/* สำหรับทดสอบ: priceOf ใช้ priceCart ตัวเดียวกับหน้าจอ */
+window.__ufe = {
+  state, calc, CONFIG, PRODUCTS, priceCart, buildPayload, render: renderAll, toPipelineView, submitOrderToPipeline, goTo, QR,
+  get PromptPay(){ return PromptPay; }, get lastOrder(){ return lastSent; },
+  priceOf: (cart, opts) => priceCart(cart, opts).pricing.totalSatang
+};
+})();
+</script>
+</body>
+</html>
