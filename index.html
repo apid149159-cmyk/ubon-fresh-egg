@@ -299,6 +299,7 @@ dialog button{min-height:56px;width:100%;border-radius:14px;border:0;background:
 </div>
 
 <main class="wrap">
+  <p class="note box" id="recoveryNotice" role="status" hidden></p>
   <!-- ===== ขั้น 1 เลือกเบอร์ ===== -->
   <section class="step" id="step1" data-step="1" aria-labelledby="hStep1">
     <h2 id="hStep1" tabindex="-1">เลือกเบอร์ไข่</h2>
@@ -439,6 +440,7 @@ dialog button{min-height:56px;width:100%;border-radius:14px;border:0;background:
       <div aria-live="polite"><table class="sum"><tbody id="sumBody"></tbody></table></div>
       <p class="note" id="sumNote"></p>
       <label class="consent"><input type="checkbox" id="consent"> ยินยอมให้ร้านใช้ชื่อ เบอร์โทร ที่อยู่ และตำแหน่ง เพื่อจัดส่งออเดอร์นี้เท่านั้น</label>
+      <p class="note">เมื่อยืนยันสั่ง เว็บจะเก็บข้อมูลรายการนี้ในเบราว์เซอร์ของเครื่องนี้ เพื่อกู้คืนเมื่อเน็ตหลุดหรือเปิดใหม่ เมื่อทราบผลแล้ว กด “สั่งไข่ออเดอร์ใหม่” เพื่อลบข้อมูลที่เก็บในเครื่อง อย่าล้างข้อมูลเว็บไซต์ระหว่างรอผล</p>
       <p class="note" id="pdpaRetention">ร้านเก็บข้อมูลนี้ไว้ไม่เกิน 1 ปีหลังออเดอร์ล่าสุด แล้วลบชื่อ เบอร์ ที่อยู่ และพิกัดออก</p>
     </section>
   </section>
@@ -1082,7 +1084,8 @@ function goTo(n, opts){
   opts = opts || {};
   if (pending && !state.submitted && n < 5){
     if (!pendingRejected){ showPendingRequest(); return; }
-    pending = null; pendingRejected = false; pendingMessage = '';
+    try { clearRecovery(pending.order_id); } catch(e){ storageFailure(); return; }
+    pending = null; pendingRejected = false; pendingMessage = ''; $('recoveryNotice').hidden = true;
   }
   if (state.submitted && n < 6) n = state.step;               // หลังส่งออเดอร์แล้ว ย้อนไปแก้ไม่ได้ (ต้องติดต่อร้าน)
   if (!state.submitted && n >= 6) n = Math.min(state.step, 5);
@@ -1335,7 +1338,7 @@ function renderStep4(c){
 /* ===== ขั้น 5 ===== */
 function slotText(zone, slot){ return zone.pickup ? `รับที่ร้าน ${CONFIG.slots.PICKUP} น.` : `${CONFIG.slotInfo[slot].name} ${CONFIG.slots[slot]} น.`; }
 function renderStep5(c){
-  const zone = curZone(), d = deliveryInfo();
+  const zone = curZone(), d = pending ? {dateTxt:new Date(pending.delivery.date + 'T00:00:00Z').toLocaleDateString('th-TH',{timeZone:'UTC',weekday:'long',day:'numeric',month:'short'})} : deliveryInfo();
   $('sumItems').innerHTML = c.items.length ? '<ul>' + c.items.map(it => `<li>${itemLabel(it)} × ${it.qty}</li>`).join('') + `</ul><p>รวม ${trayText(c.trays)}</p>` : '<p>ยังไม่มีไข่ในตะกร้า</p>';
   const name = $('custName').value.trim(), phone = $('custPhone').value.trim(), addr = $('custAddr').value.trim();
   $('sumWho').innerHTML = `<p>${esc(name || '—')} · ${esc(phone || '—')}</p>` + (zone.pickup ? '<p>รับเองที่ร้าน</p>' :
@@ -1467,11 +1470,13 @@ function renderBar(c){
 
 function renderAll(){
   releasePendingControls();
-  const c = calc();
+  const c = pending ? pendingCalc() : calc();
   renderProgress(); renderCartChip(c); renderCutoff();
   renderSizes(); renderStep2(c); renderCoach(c); renderStep3(); renderStep4(c); renderStep5(c);
   renderStep6(); renderStep7(); renderBar(c);
   lockPendingControls();
+  if (recoveryBlocked) $('btnNext').disabled = true;
+  if (pending) $('cutoff').textContent = 'รายการเดิม ' + pending.order_id + ' · วันรับ/ส่ง ' + pending.delivery.date + ' · ยอด ' + bahtS(pending.financial_metrics.net_amount_satang);
   return c;
 }
 const renderSummary = renderAll;
@@ -1527,13 +1532,28 @@ $('btnNext').onclick = () => {
   else if (s === 5){ if (state.sending) return; submitOrderToPipeline(); }
   else if (s === 6) goTo(7);
 };
-$('btnNew').onclick = () => {
+$('btnNew').onclick = () => withRecoveryLock(() => {
+  if (state.sending || pending || !state.submitted) return;
+  try {
+    if (CONFIG.pipeline.url) {
+      const r = readRecovery();
+      if (!r || r.status !== 'confirmed' || r.view.order_id !== lastSent.order_id){
+        if (r) restoreRecovery(r); else storageFailure();
+        return;
+      }
+      clearRecovery(lastSent.order_id);
+    }
+  } catch(e){ storageFailure(); return; }
   Object.keys(state.cart).forEach(k => state.cart[k] = 0);
-  state.swap = 0; state.pay = 'PREPAY_TRANSFER'; state.submitted = null; pending = null; pendingRejected = false; pendingMessage = '';
-  $('consent').checked = false; $('slip').value = ''; $('slipName').classList.add('hidden');
+  state.swap = 0; state.pay = 'PREPAY_TRANSFER'; state.submitted = null;
+  pending = null; lastSent = null; pendingRejected = false; pendingMessage = '';
+  state.gps = null; state.gpsBase = null; state.nudge = {n:0,e:0};
+  ['custName','custPhone','custAddr','slip'].forEach(id => $(id).value = '');
+  $('consent').checked = false; $('slipName').classList.add('hidden');
+  recoveryBlocked = false; $('recoveryNotice').hidden = true;
   try { history.replaceState({ ufeStep:1 }, ''); } catch(e){}
   goTo(1, { fromPop:true });
-};
+});
 // ปุ่มย้อนกลับของมือถือ/เบราว์เซอร์ ทำงานเหมือนปุ่ม "ย้อนกลับ" ในหน้า
 window.addEventListener('popstate', e => {
   const s = e.state && e.state.ufeStep; if (!s) return;
@@ -1662,11 +1682,150 @@ function toPipelineView(order, idempotencyKey){
   };
 }
 
-let pending = null;                             // เก็บในหน่วยความจำเท่านั้น ส่งซ้ำใช้ idempotency_key เดิม
+let pending = null;                             // บันทึกก่อนส่ง และใช้ idempotency_key เดิมหลังเปิดใหม่
 let lastSent = null;
 let pendingRejected = false;
 let pendingMessage = '';
 let pendingLockedControls = [];
+
+const RECOVERY_KEY = 'ufe.order-recovery.v1';
+const RECOVERY_LOCK = 'ufe.order-submit.v1';
+let recoveryBlocked = false;
+function recoveryNotice(message){
+  const el = $('recoveryNotice');
+  el.textContent = message; el.hidden = false;
+}
+function readRecovery(){
+  const raw = localStorage.getItem(RECOVERY_KEY);
+  if (!raw) return null;
+  const r = JSON.parse(raw), v = r.view, o = v && v.source_order;
+  const zone = o && CONFIG.zones.find(z => z.code === o.delivery?.zoneCode);
+  if (r.version !== 1 || r.endpoint !== CONFIG.pipeline.url ||
+      !['pending','rejected','confirmed'].includes(r.status) || !zone ||
+      !v || typeof v.order_id !== 'string' || !/^[A-Za-z0-9-]{1,80}$/.test(v.order_id) ||
+      typeof v.idempotency_key !== 'string' || !/^[A-Za-z0-9-]{1,100}$/.test(v.idempotency_key) ||
+      !o.customer || !['name','phone'].every(k => typeof o.customer[k] === 'string') ||
+      o.customer.consentPdpa !== true || !/^\d{10}$/.test(o.customer.phone) ||
+      !['COD','PREPAY_TRANSFER'].includes(o.payment?.method) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(o.delivery.date) || !Number.isFinite(Date.parse(o.delivery.date)) ||
+      (o.delivery.slot !== null && !zone.slots.includes(o.delivery.slot)) ||
+      !Array.isArray(o.items) || !o.items.length ||
+      !o.items.every(i => PRODUCTS.some(p => p.size === i.size && p.packEggs === i.packEggs) &&
+        Number.isInteger(i.qty) && i.qty > 0 && i.qty <= CONFIG.maxQty &&
+        Number.isSafeInteger(i.lineTotalSatang) && i.lineTotalSatang >= 0) ||
+      !o.pricing || !['subtotalSatang','tierDiscountSatang','prepayDiscountSatang','ppTrayDiscountSatang','deliveryFeeSatang','totalSatang']
+        .every(k => Number.isSafeInteger(o.pricing[k]) && o.pricing[k] >= 0) ||
+      JSON.stringify(toPipelineView(o, v.idempotency_key)) !== JSON.stringify(v) ||
+      (r.status === 'confirmed' && (typeof r.orderId !== 'string' || !/^[A-Za-z0-9-]{1,80}$/.test(r.orderId)))){
+    throw new Error('Invalid recovery record');
+  }
+  const expectedTrays = priceCart(o.items, {payment:o.payment.method, method:o.delivery.method, ppTraysReturned:o.trays.ppTraysReturned}).trays;
+  if (o.schemaVersion !== 'eggfresh.order.v1' || o.orderId !== v.order_id ||
+      !Number.isFinite(Date.parse(o.createdAt)) ||
+      o.delivery.method !== (zone.pickup ? 'pickup' : 'delivery') ||
+      (o.delivery.address !== null && typeof o.delivery.address !== 'string') ||
+      !['totalEggs','fullTrays','wholeTrays','remainderEggs','ppTraysReturned']
+        .every(k => Number.isSafeInteger(o.trays[k]) && o.trays[k] === expectedTrays[k]) ||
+      !o.items.every(i => i.eggs === i.qty*i.packEggs &&
+        Number.isSafeInteger(i.unitPriceSatang) && i.unitPriceSatang >= 0 &&
+        i.lineTotalSatang === i.unitPriceSatang*i.qty) ||
+      o.items.reduce((n,i)=>n+i.lineTotalSatang,0) !== o.pricing.subtotalSatang-o.pricing.tierDiscountSatang ||
+      o.pricing.totalSatang !== o.pricing.subtotalSatang-o.pricing.tierDiscountSatang-
+        o.pricing.prepayDiscountSatang-o.pricing.ppTrayDiscountSatang+o.pricing.deliveryFeeSatang){
+    throw new Error('Invalid recovery snapshot');
+  }
+  return r;
+}
+function saveRecovery(status, orderId){
+  if (!CONFIG.pipeline.url) return;
+  const raw = JSON.stringify({version:1, endpoint:CONFIG.pipeline.url, status, view:pending,
+    orderId:orderId || null});
+  localStorage.setItem(RECOVERY_KEY, raw);
+  if (localStorage.getItem(RECOVERY_KEY) !== raw) throw new Error('Recovery write failed');
+}
+function clearRecovery(expectedId){
+  if (!CONFIG.pipeline.url) return;
+  const r = readRecovery();
+  if (!r || r.view.order_id !== expectedId) throw new Error('Recovery changed');
+  localStorage.removeItem(RECOVERY_KEY);
+  if (localStorage.getItem(RECOVERY_KEY) !== null) throw new Error('Recovery clear failed');
+}
+function restoreRecovery(r){
+  const o = r.view.source_order;
+  Object.keys(state.cart).forEach(k => state.cart[k] = 0);
+  o.items.forEach(i => state.cart[keyOf(i.size, i.packEggs)] = i.qty);
+  state.curSize = o.items[0].size;
+  state.zone = o.delivery.zoneCode; state.prevZone = state.zone === 'PU' ? 'WRN' : state.zone;
+  state.slot = o.delivery.slot || 'PICKUP'; state.pay = o.payment.method;
+  state.swap = o.trays.ppTraysReturned;
+  state.gps = o.delivery.gps; state.gpsBase = null; state.nudge = {n:0,e:0};
+  $('custName').value = o.customer.name; $('custPhone').value = o.customer.phone;
+  $('custAddr').value = o.delivery.address || ''; $('consent').checked = true;
+  state.sending = false; state.submitted = null;
+  pending = r.view; pendingRejected = r.status === 'rejected';
+  pendingMessage = pendingRejected
+    ? 'ร้านปฏิเสธรายการเดิมแล้ว ปิดกล่องแล้วกดย้อนกลับเพื่อตรวจและแก้ข้อมูลก่อนยืนยันใหม่'
+    : 'กู้คืนรายการเดิมแล้ว ยังไม่ทราบผล กดส่งรายการเดิมอีกครั้งเพื่อตรวจผลกับร้าน โดยใช้รหัสเดิม';
+  recoveryNotice('พบรายการเดิมในเครื่องนี้ · ข้อมูลจะอยู่จนทราบผลและคุณกดสั่งออเดอร์ใหม่');
+  if (r.status === 'confirmed') finishOrder('sent', {order_id:r.orderId}, false);
+  else { goTo(5, {fromPop:true}); showPendingRequest(); }
+}
+function pendingCalc(){
+  const c = calc(), o = pending.source_order, p = o.pricing;
+  return Object.assign(c, {items:o.items, trays:o.trays, pricing:p,
+    eggs:o.trays.totalEggs, subtotal:p.subtotalSatang/100, tierDisc:p.tierDiscountSatang/100,
+    goods:(p.subtotalSatang-p.tierDiscountSatang)/100, prepay:p.prepayDiscountSatang/100,
+    ppOff:p.ppTrayDiscountSatang/100, fee:p.deliveryFeeSatang/100, total:p.totalSatang/100});
+}
+function storageFailure(){
+  recoveryBlocked = true;
+  recoveryNotice('ยังส่งไม่ได้ เพราะอ่านหรือบันทึกรายการเดิมในเครื่องนี้ไม่ได้ กรุณาเปิดการจัดเก็บข้อมูลของเว็บไซต์ หากเคยส่งแล้วให้ตรวจเลขรายการกับร้านก่อนเริ่มใหม่');
+  $('btnNext').disabled = true;
+}
+async function withRecoveryLock(action){
+  if (!CONFIG.pipeline.url) return action();
+  if (!navigator.locks || typeof navigator.locks.request !== 'function'){
+    storageFailure(); return {ok:false, reason:'storage-unavailable'};
+  }
+  try {
+    return await navigator.locks.request(RECOVERY_LOCK, {ifAvailable:true}, async lock => {
+      if (!lock){
+        recoveryNotice('มีอีกแท็บกำลังส่งรายการอยู่ รอให้แท็บนั้นทราบผลก่อน แล้วลองอีกครั้ง');
+        return {ok:false, reason:'other-tab-busy'};
+      }
+      return action();
+    });
+  } catch(e){
+    storageFailure(); return {ok:false, reason:'storage'};
+  }
+}
+async function submitOrderToPipeline(){
+  if (state.sending) return {ok:false, reason:'busy'};
+  return withRecoveryLock(async () => {
+    if (CONFIG.pipeline.url){
+      let r;
+      try { r = readRecovery(); } catch(e){ storageFailure(); return {ok:false, reason:'storage'}; }
+      recoveryBlocked = false;
+      if (r){
+        if (r.status === 'confirmed' || !pending || r.view.idempotency_key !== pending.idempotency_key || r.status === 'rejected'){
+          restoreRecovery(r);
+          return {ok:false, reason:'restored'};
+        }
+      } else if (pending){
+        storageFailure(); return {ok:false, reason:'storage-conflict'};
+      }
+    }
+    return sendOrderRequest();
+  });
+}
+function initializeRecovery(){
+  if (!CONFIG.pipeline.url) return;
+  try {
+    const r = readRecovery();
+    if (r) restoreRecovery(r);
+  } catch(e){ storageFailure(); }
+}
+
 function releasePendingControls(){
   pendingLockedControls.forEach(([el, disabled]) => { el.disabled = disabled; });
   pendingLockedControls = [];
@@ -1690,7 +1849,7 @@ function editDeadlineFor(date){
   const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate()-1);
   return d.toLocaleDateString('th-TH',{timeZone:'UTC',weekday:'long',day:'numeric',month:'short'});
 }
-function finishOrder(mode, data){
+function finishOrder(mode, data, persist = true){
   const cur = pending;
   state.submitted = {
     mode, view:cur, orderId:(data && data.order_id) || cur.order_id, pay:cur.payment.method, slot:cur.delivery.slot || 'PICKUP',
@@ -1698,11 +1857,15 @@ function finishOrder(mode, data){
     editByTxt: editDeadlineFor(cur.delivery.date),
     atTxt: new Date(cur.timestamp).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) + ' น.'
   };
+  if (mode === 'sent' && persist){
+    try { saveRecovery('confirmed', state.submitted.orderId); }
+    catch(e){ recoveryNotice('ร้านรับรายการแล้ว แต่บันทึกใบยืนยันในเครื่องไม่สำเร็จ โปรดเก็บเลขรายการ ' + state.submitted.orderId + ' ไว้ หากเปิดใหม่ให้ตรวจรายการเดิมก่อนเริ่มใหม่'); }
+  }
   lastSent = cur; pending = null; pendingRejected = false; pendingMessage = '';
   const dlg = $('done'); if (dlg.open) dlg.close();
   goTo(state.submitted.pay === 'PREPAY_TRANSFER' ? 6 : 7);
 }
-async function submitOrderToPipeline(){
+async function sendOrderRequest(){
   if (state.sending) return { ok:false, reason:'busy' };
   if (state.submitted) return { ok:false, reason:'already-submitted', orderId:state.submitted.orderId };
   if (pendingRejected){ showPendingRequest(); return { ok:false, reason:'rejected' }; }
@@ -1710,6 +1873,8 @@ async function submitOrderToPipeline(){
     const c = calc();
     const why = validate(c); if (why.length) return { ok:false, reason:'invalid', errors:why };
     pending = toPipelineView(buildPayload(c), uuid());
+    try { saveRecovery('pending'); }
+    catch(e){ pending = null; storageFailure(); return {ok:false, reason:'storage'}; }
   }
   if (!CONFIG.pipeline.url){
     // โหมดตัวอย่าง: ไม่ส่งข้อมูลออกนอกเครื่อง แต่เดินขั้นต่อไปให้ลูกค้าเห็น พร้อมป้ายบอกชัดว่ายังไม่ถึงร้าน
@@ -1735,16 +1900,18 @@ async function submitOrderToPipeline(){
       pendingMessage = /ราคา|price|version/i.test(String(data.error || ''))
         ? 'ร้านยังไม่รับรายการนี้ เพราะราคาไม่ตรง กรุณาปิดกล่องแล้วทบทวนรายการ หรือเปิดหน้าเว็บล่าสุดก่อนยืนยันใหม่'
         : 'ร้านปฏิเสธรายการนี้ กรุณาปิดกล่องแล้วตรวจชื่อ เบอร์โทร สินค้า และวันรับ หากยังไม่สำเร็จให้ติดต่อร้าน';
+      try { saveRecovery('rejected'); } catch(e){ pendingRejected = false; pendingMessage = 'ร้านปฏิเสธรายการ แต่บันทึกผลในเครื่องไม่ได้ กรุณาส่งรายการเดิมอีกครั้งก่อนแก้ข้อมูล'; }
       status.textContent = pendingMessage;
       return { ok:false, reason:'rejected' };
     }
     if (!res.ok || !data || (data.ok !== true && data.duplicate !== true)) throw new Error('Unconfirmed response');
+    if (data.order_id && data.order_id !== cur.order_id) throw new Error('Mismatched order identity');
     ok = true;
     clearTimeout(t); state.sending = false; $('closeDone').disabled = false;
     finishOrder('sent', data);
     return { ok:true, mode:'sent', payload:cur, response:data };
   } catch (e){
-    pendingMessage = (e.name === 'AbortError' ? 'ยังไม่ทราบผลเพราะหมดเวลารอ' : 'ยังยืนยันผลการส่งไม่ได้') + ' · กรุณาส่งรายการเดิมอีกครั้ง อย่ารีเฟรชหรือปิดหน้านี้จนทราบผล';
+    pendingMessage = (e.name === 'AbortError' ? 'ยังไม่ทราบผลเพราะหมดเวลารอ' : 'ยังยืนยันผลการส่งไม่ได้') + ' · เก็บรายการเดิมไว้ในเครื่องแล้ว กดส่งรายการเดิมอีกครั้งเพื่อตรวจผลกับร้าน';
     status.textContent = pendingMessage;
     retry.classList.remove('hidden');
     return { ok:false, reason:'network', error:String(e.message || e) };
@@ -1767,7 +1934,7 @@ if ('ResizeObserver' in window) new ResizeObserver(fitBar).observe(bar); else wi
 
 $('sampleBanner').hidden = !!CONFIG.pipeline.url;
 try { history.replaceState({ ufeStep:1 }, ''); } catch(e){}
-renderAll(); fitBar(); setInterval(() => { renderCutoff(); if (state.step === 5) renderAll(); }, 30000);
+renderAll(); initializeRecovery(); fitBar(); setInterval(() => { renderCutoff(); if (state.step === 5) renderAll(); }, 30000);
 new MutationObserver(fitBar).observe(bar, { attributes:true, attributeFilter:['hidden'] });
 
 /* สำหรับทดสอบ: priceOf ใช้ priceCart ตัวเดียวกับหน้าจอ */
