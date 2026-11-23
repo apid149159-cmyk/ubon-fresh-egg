@@ -586,6 +586,7 @@ details.more>summary::after{color:var(--brand)}
 #swapNote{margin:6px 0!important}
 #swapEditor .swapquick{display:grid!important;grid-template-columns:1fr 1.4fr;gap:8px}
 #swapEditor .swapquick button[aria-pressed="true"]{background:#FFF3E8;color:var(--brand-darker);border:2.5px solid var(--brand)}
+.qty-entry-label{display:block;font-size:20px;font-weight:700;margin-top:8px}.qty-entry-help{font-size:15px;line-height:1.65;color:#634d3d;margin:6px 0 12px}#qtyBox .stepper.qty input{border:2px solid #c2410c;background:#fff9f0;border-radius:14px;min-height:56px}#qtyBox .stepper.qty input:focus{outline:3px solid #f8bd7d;outline-offset:2px}
 </style>
 </head>
 <body>
@@ -638,10 +639,12 @@ details.more>summary::after{color:var(--brand)}
     <div class="szlist" id="sizeList" role="group" aria-label="เลือกเบอร์ไข่" aria-describedby="optsNote1"></div>
 
     <section class="box qtybox" id="qtyBox" aria-labelledby="hQty">
-      <h3 id="hQty" tabindex="-1">เบอร์ 2 · ต้องการกี่ฟอง</h3>
+      <h3 id="hQty" tabindex="-1">เบอร์ 2 · สั่งตามจำนวนฟอง</h3>
+      <label class="qty-entry-label" for="qtyIn">กรอกจำนวนฟองที่ต้องการ</label>
+      <p class="qty-entry-help" id="qtyEntryHelp">แตะช่องตัวเลขแล้วพิมพ์ เช่น 7, 12 หรือ 45 ฟอง</p>
       <div class="stepper qty" role="group" aria-labelledby="hQty">
         <button type="button" id="qtyMinus" aria-label="ลด 1 ฟอง">−</button>
-        <input type="text" id="qtyIn" inputmode="numeric" autocomplete="off" maxlength="7" placeholder="0" aria-describedby="qtyRes qtyMsg">
+        <input type="text" id="qtyIn" inputmode="numeric" autocomplete="off" maxlength="7" placeholder="จำนวนฟอง" aria-describedby="qtyEntryHelp qtyRes qtyMsg">
         <button type="button" id="qtyPlus" class="plus" aria-label="เพิ่ม 1 ฟอง">+</button>
       </div>
       <div class="qchips" id="qtyChips" role="group" aria-label="ปุ่มลัดจำนวนฟอง"></div>
@@ -1734,7 +1737,8 @@ function renderStep1(c){
 
   // ตัวนับจำนวนฟอง
   const n = draftOf(cur.code), inC = eggsOfSize(cur.code), inp = $('qtyIn');
-  $('hQty').textContent = `เบอร์ ${cur.code} · ต้องการกี่ฟอง`;
+  $('hQty').textContent = `เบอร์ ${cur.code} · สั่งตามจำนวนฟอง`;
+  $('qtyEntryHelp').textContent = `แตะช่องตัวเลขแล้วพิมพ์ เช่น 7, 12 หรือ 45 ฟอง · รับได้ 1–${fmtN(EGG_MAX)} ฟอง (พิมพ์ 0 เพื่อนำเบอร์นี้ออก) · กดใส่ตะกร้าเพื่อยืนยัน`; 
   inp.setAttribute('aria-label', `จำนวนฟอง เบอร์ ${cur.code} (0–${fmtN(EGG_MAX)} ฟอง)`);
   if (document.activeElement !== inp && !qtyBad) inp.value = String(n);
   inp.setAttribute('aria-invalid', qtyBad ? 'true' : 'false');
