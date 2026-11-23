@@ -567,6 +567,8 @@ details.more>summary::after{color:var(--brand)}
 .swapquick button{min-height:56px;border-radius:999px;border:1.5px solid #E3CDB8;background:#FFFBF7;color:var(--brand-darker);font-weight:700;font-size:17px;padding:4px 10px;line-height:1.2}
 .swapquick button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
 @media (max-width:380px){.szbtn{grid-template-columns:28px 1fr;gap:8px;padding:8px 10px}.szbtn[aria-pressed="true"]{padding:7px 9px}.szbtn .egg{width:28px;height:38px}.sz-main .pe{font-size:18px}}
+/* Return confirmation: self-contained row layout at 360px. */
+#swapBlock.swaprow{display:block}#swapEditor .stepper{width:100%;max-width:320px}#swapEditor .swapquick{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}#swapEditor button,#swapAccepted button{min-height:48px}#swapConfirm{background:var(--green,#24563c);color:#fff;border-radius:12px;padding:12px}#swapNote{margin:10px 0}#swapAccepted[hidden],#swapEditor[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -790,6 +792,7 @@ details.more>summary::after{color:var(--brand)}
       <div id="coachSlot2"></div>
       <div id="swapBlock" class="swaprow">
         <div class="lbl-h" id="lblSwap">คืนรังไข่พลาสติกเปล่า</div>
+        <div id="swapEditor">
         <div class="stepper" style="margin-top:0" role="group" aria-labelledby="lblSwap">
           <button type="button" id="swapMinus" aria-label="ลดจำนวนรังไข่ที่คืน">−</button>
           <input type="text" id="swapQty" inputmode="numeric" autocomplete="off" maxlength="5" value="0" aria-label="จำนวนรังไข่ที่คืน (ใบ)" aria-describedby="swapNote">
@@ -800,6 +803,10 @@ details.more>summary::after{color:var(--brand)}
           <button type="button" data-swapset="0" id="swapNone">ไม่คืน</button>
           <button type="button" data-swapset="all" id="swapAll">คืนครบ</button>
         </div>
+        <button type="button" id="swapConfirm" class="btn primary" style="width:100%;margin-top:12px">ยืนยันรับส่วนลด</button>
+        <button type="button" id="swapCancel" class="btn" style="margin-top:8px">ยกเลิกการแก้ไข</button>
+        </div>
+        <div id="swapAccepted" hidden><p id="swapStatus" class="note" role="status"></p><button type="button" id="swapEdit" class="btn">แก้ไขจำนวนคืน</button></div>
       </div>
     </section>
   </section>
@@ -1333,6 +1340,37 @@ const PROD = key => PRODUCTS.find(p => p.key === key);
 const looseKey = size => keyOf(String(size), 1);
 const trayKeyOf = size => keyOf(String(size), EGGS_PER_TRAY);
 
+const TrayReturn=(()=>{  'use strict';
+  const limit = n => { if (!Number.isSafeInteger(n) || n < 0) throw Error('จำนวนแผงไม่ถูกต้อง'); return n; };
+  function create(fullTrays){ return {max:limit(fullTrays),draft:fullTrays,confirmed:0,editing:true,draftMode:'suggested'}; }
+  function edit(s){ return {...s,draft:s.confirmed,editing:true,draftMode:'manual'}; }
+  function choose(s,raw){
+    const normalized=String(raw).replace(/[๐-๙]/g,c=>String(c.charCodeAt(0)-3664)).trim();
+    if(!/^\d{1,5}$/.test(normalized)) return {...s,draft:null,editing:true,draftMode:'manual'};
+    return {...s,draft:Math.min(Number(normalized),s.max),editing:true,draftMode:'manual'};
+  }
+  function confirm(s){ if(s.draft===null) throw Error('ใส่จำนวนถาดให้ถูกต้อง'); return {...s,confirmed:s.draft,editing:false}; }
+  function cancel(s){ return {...s,draft:s.confirmed,editing:false}; }
+  function none(s){return {...s,draft:0,confirmed:0,editing:false};}
+  function cartChanged(s,fullTrays){
+    const max=limit(fullTrays);
+    // เพิ่มตะกร้าไม่เพิ่มจำนวนคืนที่ยืนยันแล้ว; ลดจนเกินสิทธิ์ต้องยืนยันใหม่
+    if(s.confirmed>max) return {max,draft:max,confirmed:0,editing:true,draftMode:'suggested'};
+    return {...s,max,draft:s.editing?(s.draftMode==='suggested'?max:s.draft===null?null:Math.min(s.draft,max)):s.confirmed};
+  }
+  const api={create,edit,choose,confirm,cancel,none,cartChanged};
+
+return api;})();
+let swapUI=TrayReturn.create(0), swapNotice='';
+function swapLocked(){return !!(state.sending || state.submitted || pending);}
+function syncSwap(max){
+  if(swapLocked()) return;
+  const old=swapUI; swapUI=old.max===0 && max>0 ? TrayReturn.create(max) : TrayReturn.cartChanged(swapUI,max);
+  if(old.confirmed>max) swapNotice='จำนวนแผงลดลง กรุณายืนยันจำนวนถาดคืนใหม่';
+  if(!max){swapUI=TrayReturn.none(swapUI);swapUI.draftMode='suggested';swapNotice='';swapBad=false;}
+  state.swap=swapUI.confirmed;
+}
+function swapNeedsConfirm(){return swapBad || (swapUI.max>0 && swapUI.editing);}
 const state = { step:1, curSize:'2', cart:{}, zone:'WRN', prevZone:'WRN', slot:'MORNING', pay:'PREPAY_TRANSFER', swap:0,
   gps:null, gpsBase:null, nudge:{ n:0, e:0 }, lastNudge:'', sending:false, submitted:null, budget:null, drafts:{}, added:'' };
 PRODUCTS.forEach(p => state.cart[p.key] = 0);
@@ -1450,7 +1488,7 @@ const curOpts = () => ({ payment:state.pay, method: curZone().pickup ? 'pickup' 
 const stateCart = (cartObj) => PRODUCTS.map(p => ({ size:p.size, packEggs:p.packEggs, qty:(cartObj||state.cart)[p.key] }));
 function calc(){
   const r0 = priceCart(stateCart(), curOpts());
-  if (state.swap > r0.trays.fullTrays) state.swap = r0.trays.fullTrays;
+  syncSwap(r0.trays.fullTrays);
   const r = priceCart(stateCart(), curOpts());
   const zone = curZone();
   r.zone = zone;
@@ -1624,7 +1662,9 @@ function prevStep(){
   return s > 1 ? s - 1 : null;
 }
 function goTo(n, opts){
+  if(state.sending || pending) return;
   opts = opts || {};
+  if(n>2 && n<=STEP_COUNT && swapNeedsConfirm() && !state.submitted) n=2;
   if (state.submitted && n < PAY_STEP) n = state.step;                 // หลังส่งออเดอร์แล้ว ย้อนไปแก้ไม่ได้ (ต้องติดต่อร้าน)
   if (!state.submitted && n >= PAY_STEP) n = Math.min(state.step, STEP_COUNT);
   if (n === PAY_STEP && state.submitted && state.submitted.pay !== 'PREPAY_TRANSFER') n = DONE_STEP;
@@ -1979,20 +2019,23 @@ function renderStep2(c){
   $('pays').innerHTML = pays.map(p => `<button type="button" class="choice" data-pay="${p.code}" aria-pressed="${p.code===state.pay}"><span>${p.t}</span>${p.s ? `<small>${p.s}</small>` : ''}</button>`).join('');
   // คืนรังไข่ (แสดงเมื่อมีแผงเต็ม)
   $('swapBlock').hidden = !c.trays.fullTrays;
-  // v9.3: พิมพ์จำนวนได้ · ปุ่มลัด "ไม่คืน" / "คืนครบ N ใบ" · บอกส่วนลดที่ได้ (ตัวเลขจาก CONFIG/calc เดิม · สูตรเงินไม่เปลี่ยน)
-  const ftr = c.trays.fullTrays, sq = $('swapQty');
-  if (document.activeElement !== sq && !swapBad) sq.value = String(state.swap);
-  sq.setAttribute('aria-invalid', swapBad ? 'true' : 'false');
-  $('swapMinus').disabled = state.swap===0;
-  $('swapPlus').disabled = state.swap>=ftr;
-  $('swapNone').setAttribute('aria-pressed', String(state.swap === 0));
-  $('swapAll').setAttribute('aria-pressed', String(ftr > 0 && state.swap === ftr));
-  $('swapAll').textContent = `คืนครบ ${fmtN(ftr)} ใบ`;
-  $('swapNote').className = swapBad ? 'err' : 'note';
-  // QA v9.1: บอกจำนวนสูงสุดด้วย ผู้สูงอายุจะได้รู้ว่าทำไมกด + ไม่ได้
-  $('swapNote').innerHTML = swapBad ? `ใส่ตัวเลข 0–${fmtN(ftr)} ใบ`
-    : state.swap ? `<span class="nw">คืน ${fmtN(state.swap)} ใบ ลด ${baht(state.swap * CONFIG.ppTrayDiscountBaht)}</span> <span class="nw">(ได้ไม่เกิน ${fmtN(ftr)} ใบ)</span>`
-    : `<span class="nw">คืน 1 ใบ ลด ${baht(CONFIG.ppTrayDiscountBaht)}</span> <span class="nw">ได้ไม่เกิน ${fmtN(ftr)} ใบ</span>`;
+  const ftr=c.trays.fullTrays, sq=$('swapQty'), locked=swapLocked();
+  if(document.activeElement!==sq && !swapBad) sq.value=String(swapUI.draft??'');
+  sq.setAttribute('aria-invalid',swapBad?'true':'false');
+  $('swapEditor').hidden=!swapUI.editing; $('swapAccepted').hidden=swapUI.editing;
+  $('swapMinus').disabled=locked || swapUI.draft===null || swapUI.draft<=0;
+  $('swapPlus').disabled=locked || swapUI.draft===null || swapUI.draft>=ftr;
+  sq.disabled=locked; $('swapNone').disabled=locked; $('swapAll').disabled=locked;
+  $('swapConfirm').disabled=locked || swapBad || swapUI.draft===null;
+  $('swapCancel').disabled=locked; $('swapEdit').disabled=locked;
+  $('swapCancel').hidden=state.swap===0;
+  $('swapNone').setAttribute('aria-pressed',String(!swapUI.editing && state.swap===0));
+  $('swapAll').setAttribute('aria-pressed',String(swapUI.draft===ftr));
+  $('swapAll').textContent='คืนครบ '+fmtN(ftr)+' ใบ';
+  $('swapConfirm').textContent=swapUI.draft===0?'ยืนยันไม่คืนถาด':'ยืนยันคืน '+fmtN(swapUI.draft??0)+' ใบ · รับส่วนลด '+baht((swapUI.draft??0)*CONFIG.ppTrayDiscountBaht);
+  $('swapStatus').textContent=state.swap?'✓ ยืนยันคืน '+fmtN(state.swap)+' ใบแล้ว · ลด '+baht(state.swap*CONFIG.ppTrayDiscountBaht):'ยืนยันว่าไม่มีถาดคืน';
+  $('swapNote').className=swapBad?'err':'note';
+  $('swapNote').textContent=swapBad?'ใส่จำนวนเต็ม 0–'+fmtN(ftr)+' ใบ':(swapNotice?swapNotice+' · ':'')+'คืนได้สูงสุด '+fmtN(ftr)+' ใบ ลดใบละ '+baht(CONFIG.ppTrayDiscountBaht)+' · ยืนยันเฉพาะถาดที่มีคืนจริง'+(state.swap?' · ส่วนลดปัจจุบัน '+baht(state.swap*CONFIG.ppTrayDiscountBaht):' · กดยืนยันก่อนใช้ส่วนลด');
 }
 
 /* ===== ขั้น 3/3 ตรวจและยืนยัน ===== */
@@ -2032,6 +2075,7 @@ function whyFor(step, c){
   if (step === 1 && !qtyBad && anyDraftPending()) why.push('กด "ใส่ตะกร้า" เพื่อยืนยันก่อน');
   if (c.eggs===0) why.push(step === 1 ? 'เลือกจำนวนไข่ก่อน แล้วกด "ใส่ตะกร้า"' : 'ยังไม่มีไข่ในตะกร้า (กลับไปขั้น 1)');
   if (step >= 2){
+    if(swapNeedsConfirm()) why.push(swapBad?'แก้จำนวนถาดคืนให้ถูกต้องก่อน':'ยืนยันจำนวนถาดคืน หรือเลือกไม่คืนก่อน');
     if (c.belowMin) why.push(`ค่าไข่ขั้นต่ำ ${bahtS(c.zone.minSatang)} ไม่นับค่าส่ง (ขาดอีก ${bahtS(c.zone.minSatang - c.goods*100)})`);
     if (!$('custName').value.trim()) why.push('กรอกชื่อผู้รับ');
     if (!phoneOk()) why.push('กรอกเบอร์โทรให้ถูก');
@@ -2142,11 +2186,22 @@ function renderBar(c){
   }
 }
 
+const pendingDisabled=new Map();
+function releasePendingControls(){for(const [el,disabled] of pendingDisabled)el.disabled=disabled;pendingDisabled.clear();}
+function lockPendingControls(){
+  if(!state.sending && !pending)return;
+  document.querySelectorAll('button,input,textarea,select').forEach(el=>{
+    if(['btnNext','retrySend','closeDone'].includes(el.id))return;
+    pendingDisabled.set(el,el.disabled);el.disabled=true;
+  });
+}
 function renderAll(){
+  releasePendingControls();
   const c = calc();
   renderProgress(); renderCutoff();
   renderStep1(c); renderStep2(c); renderCoach(c); renderStep3(c);
   renderStep6(); renderStep7(); renderBar(c);
+  lockPendingControls();
   return c;
 }
 const renderSummary = renderAll;
@@ -2183,7 +2238,7 @@ document.addEventListener('click', e => {
     renderAll(); showQtyBox(); return;
   }
   // v9.3: ปุ่มลัดคืนรังไข่ "ไม่คืน" / "คืนครบ N ใบ"
-  if (d.swapset){ swapBad = false; state.swap = d.swapset === 'all' ? calc().trays.fullTrays : 0; renderAll(); focusSel('#' + t.id); return; }
+  if(d.swapset){if(swapLocked())return;swapBad=false;swapNotice='';swapUI=d.swapset==='all'?TrayReturn.choose(swapUI,calc().trays.fullTrays):TrayReturn.none(swapUI);state.swap=swapUI.confirmed;renderAll();focusSel(d.swapset==='all'?'#swapConfirm':'#swapEdit');return;}
   if (d.nudge){
     const m = CONFIG.gpsNudgeM;
     if (d.nudge==='n') state.nudge.n += m; if (d.nudge==='s') state.nudge.n -= m;
@@ -2224,19 +2279,22 @@ $('btnMapToggle').onclick = () => { const willOpen = $('mapPaste').hidden; openM
 $('btnBack').onclick = () => { const p = prevStep(); if (p) goTo(p); };
 $('btnBackPay').onclick = () => goTo(PAY_STEP);
 $('nudgeReset').onclick = () => { state.nudge = { n:0, e:0 }; setGpsFromNudge(); renderAll(); };
-$('swapMinus').onclick = () => { swapBad = false; state.swap = Math.max(0, state.swap-1); renderAll(); focusSel('#swapMinus'); };
-$('swapPlus').onclick = () => { swapBad = false; state.swap += 1; renderAll(); focusSel('#swapPlus'); };
-// v9.3: ช่องจำนวนรังไข่ พิมพ์ได้ (เลขไทยได้) · เกินจำนวนแผงเต็ม → ปรับลงเป็นสูงสุดให้เอง · อ่านไม่ได้ → เตือน ไม่เปลี่ยนค่า
+function setSwapDraft(n){if(swapLocked())return;swapBad=false;swapNotice='';swapUI=TrayReturn.choose(swapUI,n);renderAll();}
+$('swapMinus').onclick=()=>{setSwapDraft(Math.max(0,(swapUI.draft??0)-1));focusSel('#swapMinus');};
+$('swapPlus').onclick=()=>{setSwapDraft((swapUI.draft??0)+1);focusSel('#swapPlus');};
 function applySwapInput(){
-  const raw = normDigits($('swapQty').value).replace(/[\s,]/g, '').replace(/ใบ$/, '');
-  const max = calc().trays.fullTrays;
-  if (raw === ''){ swapBad = false; state.swap = 0; renderAll(); return; }
-  if (!/^\d{1,5}$/.test(raw)){ swapBad = true; renderAll(); return; }
-  swapBad = false; state.swap = Math.min(Number(raw), max); renderAll();
+  if(swapLocked())return;
+  const raw=normDigits($('swapQty').value).replace(/[\s,]/g,'').replace(/ใบ$/,'');
+  swapUI=TrayReturn.choose(swapUI,raw);swapBad=swapUI.draft===null;
+  swapNotice=!swapBad&&Number(raw)>swapUI.max?'ปรับเป็น '+fmtN(swapUI.max)+' ใบตามจำนวนแผง':'';
+  renderAll();
 }
-$('swapQty').addEventListener('input', applySwapInput);
-$('swapQty').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); applySwapInput(); $('swapQty').value = String(state.swap); } });
-$('swapQty').addEventListener('blur', () => { swapBad = false; $('swapQty').value = String(state.swap); renderAll(); });
+$('swapQty').addEventListener('input',applySwapInput);
+$('swapQty').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applySwapInput();if(!swapBad)$('swapQty').value=String(swapUI.draft);}});
+$('swapQty').addEventListener('blur',()=>{if(!swapBad)$('swapQty').value=String(swapUI.draft);renderAll();});
+$('swapConfirm').onclick=()=>{if(swapLocked()||swapBad||swapUI.draft===null)return;swapUI=TrayReturn.confirm(swapUI);state.swap=swapUI.confirmed;swapNotice='';renderAll();focusSel('#swapEdit');};
+$('swapEdit').onclick=()=>{if(swapLocked())return;swapUI=TrayReturn.edit(swapUI);swapBad=false;swapNotice='';renderAll();focusSel('#swapQty');};
+$('swapCancel').onclick=()=>{if(swapLocked())return;swapUI=TrayReturn.cancel(swapUI);swapBad=false;swapNotice='';renderAll();focusSel('#swapEdit');};
 ['custName','custAddr','consent'].forEach(id => $(id).addEventListener('input', () => renderAll()));
 $('consent').addEventListener('change', () => renderAll());
 $('custPhone').addEventListener('input', () => { $('phoneErr').classList.add('hidden'); renderAll(); });
@@ -2250,6 +2308,7 @@ $('btnNext').onclick = () => {
 };
 $('btnNew').onclick = () => {
   Object.keys(state.cart).forEach(k => state.cart[k] = 0);
+  swapUI=TrayReturn.create(0);swapNotice='';swapBad=false;
   state.swap = 0; state.pay = 'PREPAY_TRANSFER'; state.submitted = null; pending = null; pendingFp = ''; qtyBad = false;
   $('consent').checked = false; $('slip').value = ''; $('slipName').classList.add('hidden'); $('qtyMsg').classList.add('hidden');
   try { history.replaceState({ ufeStep:1 }, ''); } catch(e){}
@@ -2566,7 +2625,7 @@ async function submitOrderToPipeline(){
   const status = $('sendStatus'), retry = $('retrySend');
   retry.classList.add('hidden');
   const cur = pending;
-  state.sending = true; $('btnNext').disabled = true; $('closeDone').disabled = true; status.textContent = 'กำลังส่งออเดอร์…';
+  state.sending = true; renderAll(); $('btnNext').disabled = true; $('closeDone').disabled = true; status.textContent = 'กำลังส่งออเดอร์…';
   const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), CONFIG.pipeline.timeoutMs);
   let ok = false, rejected = null;
   try {
@@ -2609,7 +2668,7 @@ if ('ResizeObserver' in window) new ResizeObserver(fitBar).observe(bar); else wi
 $('sampleBanner').hidden = !!CONFIG.pipeline.url;
 $('trustFee').textContent = baht(CONFIG.deliveryFeeBaht);
 try { history.replaceState({ ufeStep:1 }, ''); } catch(e){}
-renderAll(); fitBar(); setInterval(() => { renderCutoff(); if (state.step === STEP_COUNT) renderStep3(calc()); }, 30000);
+renderAll(); fitBar(); setInterval(() => { renderCutoff(); if (state.step === STEP_COUNT) renderAll(); }, 30000);
 new MutationObserver(fitBar).observe(bar, { attributes:true, attributeFilter:['hidden'] });
 
 /* สำหรับทดสอบ: priceOf ใช้ priceCart ตัวเดียวกับหน้าจอ */
