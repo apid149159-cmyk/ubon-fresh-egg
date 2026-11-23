@@ -7,6 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 <!--
+  v9.2 · 23 พ.ย. 2569 (เจ้าของสั่ง) · ตาราง 2026-11-23-v7
+  - ค่าส่ง ฿20 → ฿9 ต่อออเดอร์ (CONFIG.deliveryFeeBaht · ต้องตรง Backend.gs v7 / Code.gs 1.3.0)
+  - หน้าตาขั้น 1: แถวข้อมูลร้าน (เก็บเงินปลายทาง · ค่าส่ง · ขนาดตาม มกษ.) · การ์ดเบอร์มีเงาและวงติ๊ก · ปุ่มลัดทรงมน · แถบล่างไม่ขึ้นสีแดงตอนยังไม่เลือก
+  - ต้องกด "ใส่ตะกร้า" ยืนยันก่อน (state.drafts) · แพ็กตามการใช้/สั่งตามงบ ใส่จำนวนรอให้ยืนยันเช่นกัน
+  - สูตรคิดเงิน splitEggs payload ไม่เปลี่ยน · ทดสอบ screens_v9_2/test_v9_2.js 201/201 · parity กับ Backend.gs 600/600
+-->
+<!--
   v6 · ทีมหน้าตาและการใช้งาน · 5 พ.ย. 2569 (มติเจ้าของ: อนุมัติ flow จากแคนวาสต้นแบบ 8 หน้าจอ)
   หน้าเดียว แบ่งเป็นขั้น (state เดียวกันทั้งหน้า) · ขั้น 1 เลือกเบอร์ › 2 จำนวนและราคา › 3 ที่อยู่ + GPS › 4 วันและรอบส่ง
   › 5 ตรวจและยืนยัน › 6 โอนผ่าน QR พร้อมเพย์ (เฉพาะโอนก่อน) › 7 สั่งสำเร็จ · ปุ่มย้อนกลับไม่ทำข้อมูลหาย
@@ -484,6 +491,68 @@ body[data-step="3"] .bar button{max-width:38%;padding:6px 12px}
 .swaprow .lbl-h{grid-row:1;align-self:center}
 .swaprow .stepper{grid-row:1}
 .swaprow #swapNote{grid-column:1/-1;grid-row:2;margin:4px 0 0}
+
+/* ===== v9.2 · ปรับหน้าตาขั้น 1 ให้ดูเป็นร้านจริง น่าเชื่อถือ (เฉพาะหน้าตา · ตัวเลข สูตร payload ไม่เปลี่ยน) ===== */
+:root{--line:#EADBCB;--shadow:0 1px 2px rgba(124,45,18,.06),0 4px 14px rgba(124,45,18,.07)}
+body{background:#FBF6F0}
+header{background:linear-gradient(150deg,#B4400E 0%,#8A3210 55%,#6E2810 100%);border-radius:0 0 26px 26px;padding:12px 0 14px}
+header::before{content:"";position:absolute;right:-40px;top:-50px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.07)}
+.hero{grid-template-columns:1fr 84px;position:relative}
+.basket{width:84px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.25))}
+header h1{font-size:26px;letter-spacing:.01em}
+header h1 .en{font-size:16px;font-weight:500;opacity:.9;letter-spacing:.08em}
+.tag{opacity:.95}
+.cut{position:relative;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:7px 12px 7px 38px;margin-top:10px}
+.cut::before{content:"";position:absolute;left:11px;top:10px;width:20px;height:20px;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFFFFF' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E")}
+.trust{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px}
+.trust li{display:flex;align-items:center;gap:5px;font-size:16px;line-height:1.3;font-weight:500;color:#FFF7ED}
+.trust span{white-space:nowrap}
+.trust svg{width:18px;height:18px;color:#FED7AA;flex:none}
+body:not([data-step="1"]) .trust{display:none}
+.prog .txt{font-size:16px;color:var(--muted)}
+.prog .txt span{font-size:16px;color:var(--muted)}
+.track{height:8px;background:#EEDFD0}
+.track i{background:linear-gradient(90deg,var(--brand),var(--brand-deep))}
+.s1h{font-size:22px;margin:0;color:var(--ink)}
+#optsNote1{margin:2px 0 0;font-weight:500}
+.szlist{gap:10px}
+.szbtn{position:relative;grid-template-columns:34px 1fr;gap:10px;min-height:70px;padding:6px 12px;border:1.5px solid var(--line);border-radius:16px;box-shadow:var(--shadow);transition:border-color .15s,box-shadow .15s,transform .1s}
+.szbtn:active{transform:scale(.98)}
+.szbtn .egg{width:34px;height:44px}
+.szbtn[aria-pressed="true"]{border:2.5px solid var(--brand);background:#FFF3E8;padding:5px 11px;box-shadow:0 0 0 4px rgba(194,65,12,.12),var(--shadow)}
+.szbtn[aria-pressed="true"]::after{content:"";position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:50%;background:var(--brand) no-repeat center/14px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFFFFF' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")}
+.sz-n{font-size:20px}
+.sz-l{font-weight:500}
+.sz-main .pe{display:block;margin-top:2px;font-size:19px;font-weight:700;color:#15803D}
+.szbtn .incart{display:inline-block;margin-top:4px;padding:0 8px;border-radius:999px;background:#DCFCE7;color:#14532D;font-size:16px}
+.box{border:1px solid var(--line);box-shadow:var(--shadow)}
+.qtybox{border-top:4px solid var(--brand)}
+.qtybox h3{font-size:19px}
+.stepper.qty button{border-radius:16px}
+.stepper.qty button:not(.plus){border-color:#E3CDB8;color:var(--brand-deep)}
+.stepper.qty input{border:2px solid #E3CDB8;border-radius:16px}
+.stepper.qty input:focus{border-color:var(--brand);box-shadow:0 0 0 4px rgba(194,65,12,.15)}
+.qchips button{border:1.5px solid #E3CDB8;background:#FFFBF7;color:var(--brand-darker);border-radius:999px}
+.qchips button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+.qres{font-weight:700;color:var(--brand-darker)}
+.coach{background:#FFF8F0;border:1px solid #F5D3AE;box-shadow:var(--shadow)}
+.morehd{margin:6px 0 -2px;font-size:17px;font-weight:700;color:var(--muted)}
+.morelist{box-shadow:var(--shadow)}
+details.more>summary{font-weight:600;color:var(--ink)}
+details.more>summary::after{color:var(--brand)}
+.bar{border-top:0;box-shadow:0 -6px 24px rgba(124,45,18,.14);border-radius:20px 20px 0 0}
+.bar .amt{color:var(--ink)}
+.bar button{background:var(--brand);border-radius:16px;box-shadow:0 4px 12px rgba(194,65,12,.3)}
+.bar button:disabled{background:#EBDDD0;color:#5B4636;box-shadow:none}
+.bar .why[data-tone="soft"]{color:var(--muted);font-weight:500}
+.addbtn{display:block;width:100%;min-height:60px;margin-top:12px;padding:6px 16px;border:0;border-radius:16px;background:var(--brand);color:#fff;font-weight:700;font-size:19px;line-height:1.25;box-shadow:0 4px 12px rgba(194,65,12,.28)}
+.addbtn[data-state="remove"]{background:#fff;color:var(--err);border:2px solid #FCA5A5;box-shadow:none}
+.addbtn:disabled{cursor:default;box-shadow:none}
+.addbtn:disabled[data-state="in"]{background:#F0FDF4;color:#14532D;border:2px solid #BBF7D0}
+.addbtn:disabled[data-state="empty"]{background:#F5EEE7;color:#5B4636}
+.addnote{margin:6px 0 0;text-align:center;font-size:16px;font-weight:600;color:var(--muted)}
+.addnote:empty{display:none}
+@media (max-width:380px){.szbtn{grid-template-columns:28px 1fr;gap:8px;padding:8px 10px}.szbtn[aria-pressed="true"]{padding:7px 9px}.szbtn .egg{width:28px;height:38px}.sz-main .pe{font-size:18px}}
 </style>
 </head>
 <body>
@@ -512,6 +581,11 @@ body[data-step="3"] .bar button{max-width:38%;padding:6px 12px}
   </div>
   <div class="wrap">
     <div class="cut" id="cutoff" aria-live="polite">กำลังคำนวณเวลาตัดรอบ…</div>
+  <ul class="trust" aria-label="ข้อมูลร้าน">
+    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/></svg><span>เก็บเงินปลายทาง</span></li>
+    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg><span>ค่าส่ง <span id="trustFee">฿9</span></span></li>
+    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3c-3.6 0-6 5-6 9a6 6 0 0 0 12 0c0-4-2.4-9-6-9z"/><path d="M9.5 13l1.8 1.8 3.4-3.6"/></svg><span>ขนาดตาม มกษ.</span></li>
+  </ul>
   </div>
 </header>
 
@@ -540,6 +614,8 @@ body[data-step="3"] .bar button{max-width:38%;padding:6px 12px}
       <div class="qchips" id="qtyChips" role="group" aria-label="ปุ่มลัดจำนวนฟอง"></div>
       <p class="qres" id="qtyRes" aria-live="polite"></p>
       <p class="err hidden" id="qtyMsg" aria-live="polite"></p>
+      <button type="button" class="addbtn" id="qtyAdd" disabled data-state="empty">เลือกจำนวนฟองก่อน</button>
+      <p class="addnote" id="qtyAddNote" aria-live="polite"></p>
     </section>
 
     <div id="coachSlot1"></div>
@@ -911,7 +987,7 @@ return __r.PromptPay; })(); /* PROMPTPAY-END */
 'use strict';
 /* ===== ค่าตั้ง (ตามมติเจ้าของ 5 พ.ย. 2569 · ราคาเป็นบาทจำนวนเต็ม) ===== */
 const CONFIG = {
-  priceTableVersion: '2026-11-07-v6',   // v8 · ต้องตรงกับ PRICE_TABLE_VERSION ใน Backend.gs (เซิร์ฟเวอร์ปฏิเสธฉบับอื่น)
+  priceTableVersion: '2026-11-23-v7',   // v9.2: ค่าส่ง ฿9 (เจ้าของสั่ง 23 พ.ย.)   // v8 · ต้องตรงกับ PRICE_TABLE_VERSION ใน Backend.gs (เซิร์ฟเวอร์ปฏิเสธฉบับอื่น)
   // เบอร์ไข่ตาม มกษ. 6702-2553 · prices = [1–4 แผง, 5–9 แผง, 10 แผงขึ้นไป] บาท/แผง 30 ฟอง
   sizes: [
     { code:'0', label:'ใหญ่พิเศษ', weight:'มากกว่า 70 กรัม/ฟอง', prices:[154,151,148], egg:1.00 },
@@ -946,7 +1022,7 @@ const CONFIG = {
   fillTrayFrom: 25,
   prepayPct: 2,            // โอนก่อนลด 2% ปัดลงเป็นบาท (ไม่รวมแผงราคาส่ง · ไม่รวมค่าส่ง)
   ppTrayDiscountBaht: 1,   // คืนรังไข่พลาสติก ลดใบละ 1 บาท ไม่เกินจำนวนแผงเต็ม
-  deliveryFeeBaht: 20,     // v8: ค่าส่ง ฿20 ต่อออเดอร์ส่งถึงบ้าน ไม่ขึ้นกับวิธีจ่าย · รับเอง 0 [ผลกระทบ: โอนก่อนจ่ายเพิ่ม ฿20 · เจ้าของยืนยัน 7 พ.ย. 2569]
+  deliveryFeeBaht: 9,      // v9.2: ลดจาก ฿20 เป็น ฿9 ต่อออเดอร์ (เจ้าของสั่ง 23 พ.ย.) · เดิม v8     // v8: ค่าส่ง ฿20 ต่อออเดอร์ส่งถึงบ้าน ไม่ขึ้นกับวิธีจ่าย · รับเอง 0 [ผลกระทบ: โอนก่อนจ่ายเพิ่ม ฿20 · เจ้าของยืนยัน 7 พ.ย. 2569]
   maxQty: 50,
   // v8 สั่งตามงบ: งบเป็นบาทเต็ม
   budgetMin: 1, budgetMax: 100000,
@@ -1240,7 +1316,7 @@ const looseKey = size => keyOf(String(size), 1);
 const trayKeyOf = size => keyOf(String(size), EGGS_PER_TRAY);
 
 const state = { step:1, curSize:'2', cart:{}, zone:'WRN', prevZone:'WRN', slot:'MORNING', pay:'PREPAY_TRANSFER', swap:0,
-  gps:null, gpsBase:null, nudge:{ n:0, e:0 }, lastNudge:'', sending:false, submitted:null, budget:null };
+  gps:null, gpsBase:null, nudge:{ n:0, e:0 }, lastNudge:'', sending:false, submitted:null, budget:null, drafts:{}, added:'' };
 PRODUCTS.forEach(p => state.cart[p.key] = 0);
 
 const tierFor = fullTrays => [...CONFIG.trayTiers].reverse().find(t => fullTrays >= t.min) || CONFIG.trayTiers[0];
@@ -1480,6 +1556,23 @@ function setEggs(size, n){
   replaceSize(size, lines);
   return lines;
 }
+/* v9.2: จำนวนที่กำลังเลือก (ยังไม่ลงตะกร้า) · ลูกค้าต้องกด "ใส่ตะกร้า" ยืนยันก่อน เจ้าของขอเมื่อ 23 พ.ย.
+   state.drafts[เบอร์] = จำนวนฟองที่เลือกค้างไว้ · ไม่มี = ใช้จำนวนในตะกร้า · ราคาทั้งหมดยังมาจาก priceCart/splitEggs ตัวเดิม */
+const hasDraft = size => Object.prototype.hasOwnProperty.call(state.drafts, String(size));
+const draftOf = size => hasDraft(size) ? state.drafts[String(size)] : eggsOfSize(size);
+const draftPending = size => hasDraft(size) && state.drafts[String(size)] !== eggsOfSize(size);
+const anyDraftPending = () => Object.keys(state.drafts).some(draftPending);
+function cartWithDraft(size, n){
+  const tmp = Object.assign({}, state.cart);
+  PRODUCTS.filter(p => p.size === String(size)).forEach(p => tmp[p.key] = 0);
+  splitEggs(size, n).forEach(l => { tmp[keyOf(String(l.size), l.packEggs)] = l.qty; });
+  return tmp;
+}
+function totalWith(cartObj){
+  const o = curOpts(), r0 = priceCart(stateCart(cartObj), o);
+  o.ppTraysReturned = Math.min(o.ppTraysReturned, r0.trays.fullTrays);
+  return priceCart(stateCart(cartObj), o);
+}
 // ช่องจำนวนฟอง: แปลงเลขไทย/เต็มความกว้างแบบเดียวกับช่องงบ · ว่าง = 0 · อ่านไม่ได้/เกินช่วง = null
 const parseEggCount = raw => {
   const s = normDigits(raw).replace(/[\s,]/g, '').replace(/ฟอง$/, '');
@@ -1564,7 +1657,7 @@ function renderStep1(c){
   $('optsNote1').textContent = cardOpts().method === 'pickup' ? 'ราคาต่อฟองเมื่อซื้อ 1 แผง รับเองที่ร้าน' : 'ราคาต่อฟองเมื่อซื้อ 1 แผง รวมค่าส่งแล้ว';
 
   // ตัวนับจำนวนฟอง
-  const n = eggsOfSize(cur.code), inp = $('qtyIn');
+  const n = draftOf(cur.code), inC = eggsOfSize(cur.code), inp = $('qtyIn');
   $('hQty').textContent = `เบอร์ ${cur.code} · ต้องการกี่ฟอง`;
   inp.setAttribute('aria-label', `จำนวนฟอง เบอร์ ${cur.code} (0–${fmtN(EGG_MAX)} ฟอง)`);
   if (document.activeElement !== inp && !qtyBad) inp.value = String(n);
@@ -1574,7 +1667,21 @@ function renderStep1(c){
   $('qtyPlus').setAttribute('aria-label', `เพิ่ม 1 ฟอง เบอร์ ${cur.code}`);
   $('qtyChips').innerHTML = CONFIG.eggChips.map(q => `<button type="button" data-qset="${q}" aria-pressed="${q === n}" aria-label="${q} ฟอง${CONFIG.eggChipNote[q] ? ' (' + CONFIG.eggChipNote[q] + ')' : ''} เบอร์ ${cur.code}">${q}${CONFIG.eggChipNote[q] ? `<small>${CONFIG.eggChipNote[q]}</small>` : ''}</button>`).join('');
   // v9.1: บรรทัดผลลัพธ์บอกแค่การจัดแผง/ฟอง ("= 1 แผง + 5 ฟอง") · ราคาอยู่ที่แถบล่างที่เดียว · ว่าง = ซ่อน (.qres:empty)
-  $('qtyRes').textContent = n ? `= ${linesText(sizeLines(cur.code))}` : '';
+  $('qtyRes').textContent = n ? `= ${linesText(splitEggs(cur.code, n))}` : '';
+  // v9.2: ปุ่มยืนยันใส่ตะกร้า
+  const add = $('qtyAdd'), note = $('qtyAddNote'), pend = n !== inC && !qtyBad;
+  if (pend){
+    add.disabled = false; add.dataset.state = n === 0 ? 'remove' : 'add';
+    add.textContent = n === 0 ? `เอาเบอร์ ${cur.code} ออกจากตะกร้า` : inC ? `อัปเดตตะกร้า · ${fmtN(n)} ฟอง` : `ใส่ตะกร้า · ${fmtN(n)} ฟอง`;
+    const r = totalWith(cartWithDraft(cur.code, n));
+    note.classList.remove('sr');
+    note.textContent = r.eggs ? `กดแล้วยอดรวมเป็น ${baht(r.total)} · ${barPeTxt(r)}` : 'กดแล้วตะกร้าจะว่าง';
+  } else {
+    add.disabled = true; add.dataset.state = n && !qtyBad ? 'in' : 'empty';
+    add.textContent = qtyBad ? 'แก้จำนวนฟองก่อน' : n ? `✓ อยู่ในตะกร้าแล้ว · ${fmtN(n)} ฟอง` : 'เลือกจำนวนฟองก่อน';
+    note.classList.add('sr');                     // ปุ่มเขียว "อยู่ในตะกร้าแล้ว" บอกด้วยตาแล้ว · ข้อความนี้ให้โปรแกรมอ่านจอประกาศ
+    note.textContent = state.added || '';
+  }
 
   // ตะกร้าแบบสั้น · v9.1 เหลือ "เบอร์ 2 · 35 ฟอง" กับปุ่มแก้/ลบ (ไม่มีราคา)
   const inCart = CONFIG.sizes.filter(s => eggsOfSize(s.code) > 0);
@@ -1606,6 +1713,13 @@ function setEggsUI(size, n){
   setEggs(size, Math.max(0, Math.min(EGG_MAX, n)));
   renderAll();
 }
+function setDraftUI(size, n){
+  qtyBad = false;
+  $('qtyMsg').classList.add('hidden'); $('qtyMsg').textContent = '';
+  state.drafts[String(size)] = Math.max(0, Math.min(EGG_MAX, n));
+  state.added = '';
+  renderAll();
+}
 function applyQtyInput(){
   const inp = $('qtyIn'), n = parseEggCount(inp.value), msg = $('qtyMsg');
   if (n === null){
@@ -1616,7 +1730,7 @@ function applyQtyInput(){
     renderBar(calc());                     // QA v9: ปุ่มต่อไปกดไม่ได้ทันที + แถบล่างบอกเหตุผล
     return null;
   }
-  setEggsUI(state.curSize, n);
+  setDraftUI(state.curSize, n);
   return n;
 }
 /* สั่งตามงบ · ค่าที่ลูกค้าพิมพ์ไม่ถูกนำไปใส่ HTML (แปลงเป็นตัวเลขด้วย Number เท่านั้น แล้วสร้าง DOM ด้วย textContent) */
@@ -1643,10 +1757,10 @@ function renderBudget(){
       const zn = curZone();
       if (zn.minSatang && r.r.goods * 100 < zn.minSatang) bd.appendChild(mk('div', 'minnote', `ค่าไข่ ${baht(r.r.goods)} ยังไม่ถึงขั้นต่ำ ${bahtS(zn.minSatang)} ของ${zn.name} (ค่าส่งไม่นับรวม) · ต้องเพิ่มไข่ก่อนสั่ง`));
       li.appendChild(bd);
-      const btn = mk('button', 'btn2 small', 'ใส่ตะกร้า');
+      const btn = mk('button', 'btn2 small', 'เลือก');
       btn.type = 'button';
       btn.dataset.budgetSize = s.code;
-      btn.setAttribute('aria-label', `ใส่ตะกร้า เบอร์ ${s.code} ${r.eggs} ฟอง ยอด ${baht(r.total)} (แทนเบอร์ ${s.code} ที่มีอยู่)`);
+      btn.setAttribute('aria-label', `เลือก เบอร์ ${s.code} ${r.eggs} ฟอง ยอด ${baht(r.total)} (แล้วกดใส่ตะกร้าเพื่อยืนยัน)`);
       li.appendChild(btn);
     } else {
       bd.appendChild(mk('span', '', `งบไม่พอ · ต้องมีอย่างน้อย ${baht(r.minTotal)} (1 ฟอง)`));
@@ -1722,6 +1836,8 @@ function renderCoach(c){
     hide();
     return;
   }
+  // v9.2: กำลังเลือกจำนวนค้างอยู่ (ยังไม่กดใส่ตะกร้า) → ไม่แนะนำ เพื่อไม่ให้สับสนกับตัวเลขในช่อง
+  if (anyDraftPending()){ hide(); return; }
   // 1) เศษไม่ครบแผง → เติมให้ครบแผง (คิดทีละเบอร์ เบอร์ที่กำลังเลือกก่อน)
   //    แสดงเมื่อเศษ ≥ CONFIG.fillTrayFrom (25) ฟอง หรือเติมแล้วยอดชำระไม่เพิ่ม · ตะกร้าทางเลือกจัดด้วย splitEggs เหมือนกัน
   const sizeOrder = [cur.code].concat(CONFIG.sizes.map(s => s.code).filter(x => x !== cur.code));
@@ -1886,7 +2002,8 @@ function whyFor(step, c){
   const why = [];
   // QA v9: ช่องจำนวนฟองมีค่าที่อ่านไม่ได้ (เช่น พิมพ์ 1530, 1.5) ตะกร้าอาจค้างเป็นเลขครึ่งทาง (153, 1) → ห้ามไปต่อจนกว่าจะแก้
   if (qtyBad) why.push(step === 1 ? `แก้จำนวนฟองให้ถูกก่อน (0–${fmtN(EGG_MAX)} ฟอง)` : 'แก้จำนวนฟองในขั้น 1 ให้ถูกก่อน');
-  if (c.eggs===0) why.push(step === 1 ? 'เลือกจำนวนไข่ก่อน (แตะปุ่มลัดหรือกด +)' : 'ยังไม่มีไข่ในตะกร้า (กลับไปขั้น 1)');
+  if (step === 1 && !qtyBad && anyDraftPending()) why.push('กด "ใส่ตะกร้า" เพื่อยืนยันก่อน');
+  if (c.eggs===0) why.push(step === 1 ? 'เลือกจำนวนไข่ก่อน แล้วกด "ใส่ตะกร้า"' : 'ยังไม่มีไข่ในตะกร้า (กลับไปขั้น 1)');
   if (step >= 2){
     if (c.belowMin) why.push(`ค่าไข่ขั้นต่ำ ${bahtS(c.zone.minSatang)} ไม่นับค่าส่ง (ขาดอีก ${bahtS(c.zone.minSatang - c.goods*100)})`);
     if (!$('custName').value.trim()) why.push('กรอกชื่อผู้รับ');
@@ -1976,6 +2093,7 @@ function renderBar(c){
     $('barTotal').textContent = baht(c.total);
     const why = whyFor(s, c);
     $('barWhy').textContent = why[0] || '';
+    $('barWhy').setAttribute('data-tone', s === 1 && c.eggs === 0 && !qtyBad && !anyDraftPending() ? 'soft' : 'warn');
     btn.textContent = 'ต่อไป ›';
     btn.disabled = why.length > 0;
     $('barPe').textContent = barPeTxt(c);
@@ -2015,16 +2133,17 @@ document.addEventListener('click', e => {
   // ขั้น 1: เลือกเบอร์ (ไม่เปลี่ยนตะกร้า) · แก้/ลบในตะกร้า · ปุ่มลัดจำนวนฟอง
   if (d.size){
     if (state.curSize !== d.size){ qtyBad = false; $('qtyMsg').classList.add('hidden'); }
-    state.curSize = d.size; renderAll(); focusSel(`button[data-size="${d.size}"]`); return;
+    state.curSize = d.size; state.added = ''; renderAll(); focusSel(`button[data-size="${d.size}"]`); return;
   }
   if (d.cursize){ state.curSize = d.cursize; qtyBad = false; $('qtyMsg').classList.add('hidden'); renderAll(); showQtyBox(); return; }
-  if (d.del){ const sz = d.del; setEggsUI(sz, 0); const h = $('hCart'); if (!$('cartBox').hidden && h) h.focus(); else focusSel(`button[data-size="${sz}"]`); return; }
-  if (d.qset){ setEggsUI(state.curSize, Number(d.qset) | 0); focusSel(`button[data-qset="${d.qset}"]`); return; }
+  if (d.del){ const sz = d.del; delete state.drafts[sz]; state.added = ''; setEggsUI(sz, 0); const h = $('hCart'); if (!$('cartBox').hidden && h) h.focus(); else focusSel(`button[data-size="${sz}"]`); return; }
+  if (d.qset){ setDraftUI(state.curSize, Number(d.qset) | 0); focusSel(`button[data-qset="${d.qset}"]`); return; }
   if (d.goto){ goTo(+d.goto); return; }
   // แพ็กตามการใช้ · ใส่ตะกร้าจากงบ: แทนสินค้าเบอร์นั้นในตะกร้า แล้วอยู่ขั้น 1 ต่อ (เห็นผลในตัวนับและตะกร้า)
   if (d.preset){
     const p = CONFIG.presets.find(x => x.id === d.preset); if (!p) return;
-    replaceSize(p.lines[0].size, p.lines);
+    // v9.2: ตั้งเป็นจำนวนที่เลือกไว้ ลูกค้ากด "ใส่ตะกร้า" ยืนยันเอง (splitEggs จัดแบบเดียวกับแพ็ก เพราะแพ็กเป็นแบบถูกที่สุดอยู่แล้ว)
+    state.drafts[String(p.lines[0].size)] = p.lines.reduce((a, l) => a + l.packEggs * l.qty, 0); state.added = '';
     state.curSize = String(p.lines[0].size); qtyBad = false; $('qtyMsg').classList.add('hidden');
     renderAll(); showQtyBox(); return;
   }
@@ -2032,7 +2151,7 @@ document.addEventListener('click', e => {
     if (state.budget === null) return;
     const r = budgetBest(state.budget, d.budgetSize);
     if (!r.ok) return;
-    replaceSize(d.budgetSize, r.lines);
+    state.drafts[String(d.budgetSize)] = r.eggs; state.added = '';
     state.curSize = String(d.budgetSize); qtyBad = false; $('qtyMsg').classList.add('hidden');
     renderAll(); showQtyBox(); return;
   }
@@ -2049,11 +2168,19 @@ document.addEventListener('click', e => {
   if (sel){ renderAll(); const sEl = document.querySelector(sel); if (sEl) sEl.focus(); }
 });
 // ตัวนับจำนวนฟอง: ± ทีละ 1 ฟอง · ช่องพิมพ์ (เลขไทยได้) ใช้ทันทีที่อ่านได้ · ออกจากช่องแล้วจัดข้อความให้ตรงกับตะกร้า
-$('qtyMinus').onclick = () => { setEggsUI(state.curSize, eggsOfSize(state.curSize) - 1); focusSel('#qtyMinus'); };
-$('qtyPlus').onclick = () => { setEggsUI(state.curSize, eggsOfSize(state.curSize) + 1); focusSel('#qtyPlus'); };
+$('qtyMinus').onclick = () => { setDraftUI(state.curSize, draftOf(state.curSize) - 1); focusSel('#qtyMinus'); };
+$('qtyPlus').onclick = () => { setDraftUI(state.curSize, draftOf(state.curSize) + 1); focusSel('#qtyPlus'); };
+$('qtyAdd').onclick = () => {
+  const sz = state.curSize, n = draftOf(sz);
+  if (qtyBad || !draftPending(sz)) return;
+  setEggs(sz, n); delete state.drafts[sz];
+  state.added = n ? `✓ ใส่เบอร์ ${sz} ${fmtN(n)} ฟองลงตะกร้าแล้ว` : `เอาเบอร์ ${sz} ออกจากตะกร้าแล้ว`;
+  renderAll();
+  const h = $('hCart'); if (!$('cartBox').hidden && h) h.focus({ preventScroll:true }); else focusSel('#qtyIn');
+};
 $('qtyIn').addEventListener('input', () => { applyQtyInput(); });
-$('qtyIn').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); if (applyQtyInput() !== null) $('qtyIn').value = String(eggsOfSize(state.curSize)); } });
-$('qtyIn').addEventListener('blur', () => { if (!qtyBad) $('qtyIn').value = String(eggsOfSize(state.curSize)); });
+$('qtyIn').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); if (applyQtyInput() !== null) $('qtyIn').value = String(draftOf(state.curSize)); } });
+$('qtyIn').addEventListener('blur', () => { if (!qtyBad) $('qtyIn').value = String(draftOf(state.curSize)); });
 // สั่งตามงบ: อ่านค่าด้วย Number เท่านั้น ไม่นำข้อความที่พิมพ์ไปแสดงเป็น HTML
 let budgetTimer = null;
 $('budgetIn').addEventListener('input', () => { clearTimeout(budgetTimer); budgetTimer = setTimeout(applyBudgetInput, 250); });
@@ -2440,6 +2567,7 @@ const fitBar = () => { document.body.style.paddingBottom = (bar.hidden ? 24 : ba
 if ('ResizeObserver' in window) new ResizeObserver(fitBar).observe(bar); else window.addEventListener('resize', fitBar);
 
 $('sampleBanner').hidden = !!CONFIG.pipeline.url;
+$('trustFee').textContent = baht(CONFIG.deliveryFeeBaht);
 try { history.replaceState({ ufeStep:1 }, ''); } catch(e){}
 renderAll(); fitBar(); setInterval(() => { renderCutoff(); if (state.step === STEP_COUNT) renderStep3(calc()); }, 30000);
 new MutationObserver(fitBar).observe(bar, { attributes:true, attributeFilter:['hidden'] });
