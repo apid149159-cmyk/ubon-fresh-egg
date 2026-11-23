@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 <!--
+  v9.3 · 23 พ.ย. 2569 (เจ้าของสั่ง) · คืนรังไข่สะดวกขึ้น: พิมพ์จำนวนได้ · ปุ่ม "ไม่คืน" / "คืนครบ N ใบ" · บอกส่วนลดรวม
+  - สูตรเงินเดิม (฿1/ใบ ไม่เกินแผงเต็ม) · ตาราง 2026-11-23-v7 · payload ไม่เปลี่ยน · ฝั่งเซิร์ฟเวอร์ไม่ต้องแก้
+-->
+<!--
   v9.2 · 23 พ.ย. 2569 (เจ้าของสั่ง) · ตาราง 2026-11-23-v7
   - ค่าส่ง ฿20 → ฿9 ต่อออเดอร์ (CONFIG.deliveryFeeBaht · ต้องตรง Backend.gs v7 / Code.gs 1.3.0)
   - หน้าตาขั้น 1: แถวข้อมูลร้าน (เก็บเงินปลายทาง · ค่าส่ง · ขนาดตาม มกษ.) · การ์ดเบอร์มีเงาและวงติ๊ก · ปุ่มลัดทรงมน · แถบล่างไม่ขึ้นสีแดงตอนยังไม่เลือก
@@ -552,6 +556,16 @@ details.more>summary::after{color:var(--brand)}
 .addbtn:disabled[data-state="empty"]{background:#F5EEE7;color:#5B4636}
 .addnote{margin:6px 0 0;text-align:center;font-size:16px;font-weight:600;color:var(--muted)}
 .addnote:empty{display:none}
+/* v9.3 คืนรังไข่: ช่องพิมพ์ + ปุ่มลัด ไม่คืน / คืนครบ */
+.swaprow{grid-template-columns:1fr;grid-template-rows:auto;row-gap:6px}
+.swaprow .lbl-h{grid-column:1;grid-row:1}
+.swaprow .stepper{grid-column:1;grid-row:2;grid-template-columns:64px 1fr 64px}
+.swaprow #swapNote{grid-column:1;grid-row:3;margin:0}
+.swaprow .stepper input{width:100%;min-width:0;height:56px;text-align:center;font-size:24px;font-weight:700;border:2px solid #E3CDB8;border-radius:14px;background:#fff;font-variant-numeric:tabular-nums;padding:0 4px}
+.swaprow .stepper input[aria-invalid="true"]{border-color:var(--err);background:#FEF2F2}
+.swapquick{grid-column:1;grid-row:4;display:grid;grid-template-columns:1fr 1.4fr;gap:8px;margin-top:8px}
+.swapquick button{min-height:56px;border-radius:999px;border:1.5px solid #E3CDB8;background:#FFFBF7;color:var(--brand-darker);font-weight:700;font-size:17px;padding:4px 10px;line-height:1.2}
+.swapquick button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
 @media (max-width:380px){.szbtn{grid-template-columns:28px 1fr;gap:8px;padding:8px 10px}.szbtn[aria-pressed="true"]{padding:7px 9px}.szbtn .egg{width:28px;height:38px}.sz-main .pe{font-size:18px}}
 </style>
 </head>
@@ -778,10 +792,14 @@ details.more>summary::after{color:var(--brand)}
         <div class="lbl-h" id="lblSwap">คืนรังไข่พลาสติกเปล่า</div>
         <div class="stepper" style="margin-top:0" role="group" aria-labelledby="lblSwap">
           <button type="button" id="swapMinus" aria-label="ลดจำนวนรังไข่ที่คืน">−</button>
-          <output id="swapQty" aria-live="polite">0</output>
+          <input type="text" id="swapQty" inputmode="numeric" autocomplete="off" maxlength="5" value="0" aria-label="จำนวนรังไข่ที่คืน (ใบ)" aria-describedby="swapNote">
           <button type="button" id="swapPlus" class="plus" aria-label="เพิ่มจำนวนรังไข่ที่คืน">+</button>
         </div>
-        <p class="note" id="swapNote"></p>
+        <p class="note" id="swapNote" aria-live="polite"></p>
+        <div class="swapquick" role="group" aria-label="ปุ่มลัดคืนรังไข่">
+          <button type="button" data-swapset="0" id="swapNone">ไม่คืน</button>
+          <button type="button" data-swapset="all" id="swapAll">คืนครบ</button>
+        </div>
       </div>
     </section>
   </section>
@@ -1640,6 +1658,7 @@ function renderProgress(){
    แถวเลือกเบอร์ → ตัวนับจำนวนฟองช่องเดียวของเบอร์ที่เลือก (− / ช่องพิมพ์ / + · ปุ่มลัด) → setEggs() จัดแผง/แพ็ก/รายฟองที่ถูกที่สุดให้
    ตะกร้าแบบสั้น (หลายเบอร์ได้) · แพ็กตามการใช้ (แถวเดียว มองเห็นตลอด) · สั่งตามงบ / ตาราง / ไข่ไก่สาว อยู่ในส่วนพับ (ปิดไว้ก่อน)
    ช่องจำนวนฟอง: อ่านค่าด้วย parseEggCount (รับเลขไทย) แล้วแปลงเป็น Number เท่านั้น ไม่นำข้อความที่พิมพ์ไปใส่ HTML */
+let swapBad = false;                    // v9.3: ช่องจำนวนรังไข่มีค่าที่อ่านไม่ได้
 let qtyBad = false;                     // ช่องจำนวนฟองมีค่าที่อ่านไม่ได้ → ไม่เขียนทับข้อความที่ลูกค้าพิมพ์ จนกว่าจะแก้หรือเปลี่ยนเบอร์
 const sizeLines = (size, cartObj) => PRODUCTS.filter(p => p.size === String(size) && (cartObj || state.cart)[p.key]).map(p => ({ size:p.size, packEggs:p.packEggs, qty:(cartObj || state.cart)[p.key] }));
 const linesText = lines => lines.map(l => l.packEggs === EGGS_PER_TRAY ? `${l.qty} แผง` : l.packEggs === 1 ? `${l.qty} ฟอง` : `แพ็ก ${l.packEggs} ฟอง${l.qty > 1 ? ' ×' + l.qty : ''}`).join(' + ');
@@ -1960,12 +1979,20 @@ function renderStep2(c){
   $('pays').innerHTML = pays.map(p => `<button type="button" class="choice" data-pay="${p.code}" aria-pressed="${p.code===state.pay}"><span>${p.t}</span>${p.s ? `<small>${p.s}</small>` : ''}</button>`).join('');
   // คืนรังไข่ (แสดงเมื่อมีแผงเต็ม)
   $('swapBlock').hidden = !c.trays.fullTrays;
-  $('swapQty').textContent = state.swap;
+  // v9.3: พิมพ์จำนวนได้ · ปุ่มลัด "ไม่คืน" / "คืนครบ N ใบ" · บอกส่วนลดที่ได้ (ตัวเลขจาก CONFIG/calc เดิม · สูตรเงินไม่เปลี่ยน)
+  const ftr = c.trays.fullTrays, sq = $('swapQty');
+  if (document.activeElement !== sq && !swapBad) sq.value = String(state.swap);
+  sq.setAttribute('aria-invalid', swapBad ? 'true' : 'false');
   $('swapMinus').disabled = state.swap===0;
-  $('swapPlus').disabled = state.swap>=c.trays.fullTrays;
-  $('swapNote').className = 'note';
-  // v9.1: บรรทัดเล็กใต้ตัวนับ (แทนข้อความไอติม) · QA v9.1: บอกจำนวนสูงสุดด้วย ผู้สูงอายุจะได้รู้ว่าทำไมกด + ไม่ได้
-  $('swapNote').innerHTML = `<span class="nw">คืน 1 ใบ ลด ${baht(CONFIG.ppTrayDiscountBaht)}</span> <span class="nw">ได้ไม่เกิน ${fmtN(c.trays.fullTrays)} ใบ</span>`;
+  $('swapPlus').disabled = state.swap>=ftr;
+  $('swapNone').setAttribute('aria-pressed', String(state.swap === 0));
+  $('swapAll').setAttribute('aria-pressed', String(ftr > 0 && state.swap === ftr));
+  $('swapAll').textContent = `คืนครบ ${fmtN(ftr)} ใบ`;
+  $('swapNote').className = swapBad ? 'err' : 'note';
+  // QA v9.1: บอกจำนวนสูงสุดด้วย ผู้สูงอายุจะได้รู้ว่าทำไมกด + ไม่ได้
+  $('swapNote').innerHTML = swapBad ? `ใส่ตัวเลข 0–${fmtN(ftr)} ใบ`
+    : state.swap ? `<span class="nw">คืน ${fmtN(state.swap)} ใบ ลด ${baht(state.swap * CONFIG.ppTrayDiscountBaht)}</span> <span class="nw">(ได้ไม่เกิน ${fmtN(ftr)} ใบ)</span>`
+    : `<span class="nw">คืน 1 ใบ ลด ${baht(CONFIG.ppTrayDiscountBaht)}</span> <span class="nw">ได้ไม่เกิน ${fmtN(ftr)} ใบ</span>`;
 }
 
 /* ===== ขั้น 3/3 ตรวจและยืนยัน ===== */
@@ -2155,6 +2182,8 @@ document.addEventListener('click', e => {
     state.curSize = String(d.budgetSize); qtyBad = false; $('qtyMsg').classList.add('hidden');
     renderAll(); showQtyBox(); return;
   }
+  // v9.3: ปุ่มลัดคืนรังไข่ "ไม่คืน" / "คืนครบ N ใบ"
+  if (d.swapset){ swapBad = false; state.swap = d.swapset === 'all' ? calc().trays.fullTrays : 0; renderAll(); focusSel('#' + t.id); return; }
   if (d.nudge){
     const m = CONFIG.gpsNudgeM;
     if (d.nudge==='n') state.nudge.n += m; if (d.nudge==='s') state.nudge.n -= m;
@@ -2195,8 +2224,19 @@ $('btnMapToggle').onclick = () => { const willOpen = $('mapPaste').hidden; openM
 $('btnBack').onclick = () => { const p = prevStep(); if (p) goTo(p); };
 $('btnBackPay').onclick = () => goTo(PAY_STEP);
 $('nudgeReset').onclick = () => { state.nudge = { n:0, e:0 }; setGpsFromNudge(); renderAll(); };
-$('swapMinus').onclick = () => { state.swap = Math.max(0, state.swap-1); renderAll(); focusSel('#swapMinus'); };
-$('swapPlus').onclick = () => { state.swap += 1; renderAll(); focusSel('#swapPlus'); };
+$('swapMinus').onclick = () => { swapBad = false; state.swap = Math.max(0, state.swap-1); renderAll(); focusSel('#swapMinus'); };
+$('swapPlus').onclick = () => { swapBad = false; state.swap += 1; renderAll(); focusSel('#swapPlus'); };
+// v9.3: ช่องจำนวนรังไข่ พิมพ์ได้ (เลขไทยได้) · เกินจำนวนแผงเต็ม → ปรับลงเป็นสูงสุดให้เอง · อ่านไม่ได้ → เตือน ไม่เปลี่ยนค่า
+function applySwapInput(){
+  const raw = normDigits($('swapQty').value).replace(/[\s,]/g, '').replace(/ใบ$/, '');
+  const max = calc().trays.fullTrays;
+  if (raw === ''){ swapBad = false; state.swap = 0; renderAll(); return; }
+  if (!/^\d{1,5}$/.test(raw)){ swapBad = true; renderAll(); return; }
+  swapBad = false; state.swap = Math.min(Number(raw), max); renderAll();
+}
+$('swapQty').addEventListener('input', applySwapInput);
+$('swapQty').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); applySwapInput(); $('swapQty').value = String(state.swap); } });
+$('swapQty').addEventListener('blur', () => { swapBad = false; $('swapQty').value = String(state.swap); renderAll(); });
 ['custName','custAddr','consent'].forEach(id => $(id).addEventListener('input', () => renderAll()));
 $('consent').addEventListener('change', () => renderAll());
 $('custPhone').addEventListener('input', () => { $('phoneErr').classList.add('hidden'); renderAll(); });
