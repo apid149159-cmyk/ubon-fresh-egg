@@ -7,6 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 <!--
+  v9.5 · 23 พ.ย. 2569 (ซูซี่ ต่อจาก v9.4 ของ Codex: ยืนยันส่วนลดคืนถาดก่อนใช้)
+  - ปุ่ม ยืนยัน/แก้ไข/ยกเลิก คืนถาด สูง ≥56px · ข้อความเตือนแถบล่างเรียงใหม่ (ชื่อ เบอร์ ที่อยู่ ขั้นต่ำ ก่อนเรื่องถาด)
+  - สูตรเงิน ตาราง 2026-11-23-v7 payload pipeline.url ไม่เปลี่ยน
+-->
+<!--
   v9.3 · 23 พ.ย. 2569 (เจ้าของสั่ง) · คืนรังไข่สะดวกขึ้น: พิมพ์จำนวนได้ · ปุ่ม "ไม่คืน" / "คืนครบ N ใบ" · บอกส่วนลดรวม
   - สูตรเงินเดิม (฿1/ใบ ไม่เกินแผงเต็ม) · ตาราง 2026-11-23-v7 · payload ไม่เปลี่ยน · ฝั่งเซิร์ฟเวอร์ไม่ต้องแก้
 -->
@@ -569,6 +574,18 @@ details.more>summary::after{color:var(--brand)}
 @media (max-width:380px){.szbtn{grid-template-columns:28px 1fr;gap:8px;padding:8px 10px}.szbtn[aria-pressed="true"]{padding:7px 9px}.szbtn .egg{width:28px;height:38px}.sz-main .pe{font-size:18px}}
 /* Return confirmation: self-contained row layout at 360px. */
 #swapBlock.swaprow{display:block}#swapEditor .stepper{width:100%;max-width:320px}#swapEditor .swapquick{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}#swapEditor button,#swapAccepted button{min-height:48px}#swapConfirm{background:var(--green,#24563c);color:#fff;border-radius:12px;padding:12px}#swapNote{margin:10px 0}#swapAccepted[hidden],#swapEditor[hidden]{display:none!important}
+/* v9.5: ปุ่มยืนยัน/แก้ไข/ยกเลิกคืนถาด สูง ≥56px ตามมาตรฐานร้าน (ผู้สูงอายุกดง่าย) · โทนสีเดียวกับปุ่มอื่น */
+#swapEditor button,#swapAccepted button{min-height:56px}
+#swapConfirm,#swapCancel,#swapEdit{display:block;width:100%;border-radius:16px;font-weight:700;font-size:17px;line-height:1.25;padding:6px 14px}
+#swapConfirm{background:var(--brand);color:#fff;border:0;box-shadow:0 4px 12px rgba(194,65,12,.25);margin-top:10px!important}
+#swapConfirm:disabled{background:#EBDDD0;color:#5B4636;box-shadow:none}
+#swapCancel,#swapEdit{background:#fff;color:var(--brand-darker);border:2px solid #E3CDB8}
+#swapCancel{margin-top:8px!important}
+#swapAccepted{display:grid;gap:6px}
+#swapStatus{margin:0;font-size:17px;font-weight:700;color:#14532D}
+#swapNote{margin:6px 0!important}
+#swapEditor .swapquick{display:grid!important;grid-template-columns:1fr 1.4fr;gap:8px}
+#swapEditor .swapquick button[aria-pressed="true"]{background:#FFF3E8;color:var(--brand-darker);border:2.5px solid var(--brand)}
 </style>
 </head>
 <body>
@@ -2075,11 +2092,12 @@ function whyFor(step, c){
   if (step === 1 && !qtyBad && anyDraftPending()) why.push('กด "ใส่ตะกร้า" เพื่อยืนยันก่อน');
   if (c.eggs===0) why.push(step === 1 ? 'เลือกจำนวนไข่ก่อน แล้วกด "ใส่ตะกร้า"' : 'ยังไม่มีไข่ในตะกร้า (กลับไปขั้น 1)');
   if (step >= 2){
-    if(swapNeedsConfirm()) why.push(swapBad?'แก้จำนวนถาดคืนให้ถูกต้องก่อน':'ยืนยันจำนวนถาดคืน หรือเลือกไม่คืนก่อน');
     if (c.belowMin) why.push(`ค่าไข่ขั้นต่ำ ${bahtS(c.zone.minSatang)} ไม่นับค่าส่ง (ขาดอีก ${bahtS(c.zone.minSatang - c.goods*100)})`);
     if (!$('custName').value.trim()) why.push('กรอกชื่อผู้รับ');
     if (!phoneOk()) why.push('กรอกเบอร์โทรให้ถูก');
     if (!c.zone.pickup && !$('custAddr').value.trim()) why.push('กรอกที่อยู่');
+    // v9.5: เตือนเรื่องถาดคืนหลังข้อมูลผู้รับและขั้นต่ำ (เรื่องที่สำคัญกว่าขึ้นก่อน) · ยังกันไปขั้น 3 เหมือนเดิม
+    if(swapNeedsConfirm()) why.push(swapBad?'แก้จำนวนถาดคืนให้ถูกต้องก่อน':'ยืนยันจำนวนถาดคืน หรือเลือกไม่คืนก่อน');
   }
   if (step >= 3 && !$('consent').checked) why.push('กรุณาติ๊กยินยอมให้ใช้ข้อมูล');
   return why;
