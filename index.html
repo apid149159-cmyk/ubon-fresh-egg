@@ -7,6 +7,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 <!--
+  v9.6 · 25 พ.ย. 2569 (เจ้าของสั่ง: ตั้งราคาให้ได้กำไร ≥ ฿5/แผง จากราคารับร้านศูนย์ไข่อุบล 25 พ.ย.)
+  - ตารางราคา 2026-11-25-v8 (ต้องคู่กับ Backend.gs v8 / Code.gs 1.4.0): เบอร์ 0 154/154/154 · 1 148/145/142 (เดิม) · 2 140/136/136 · 3 133/133/133 · 4 130/130/130 · 5 123/123/123
+  - เบอร์ที่ทุกขั้นราคาเท่ากัน ไม่ชวน "เพิ่มแผงให้ได้ราคาขั้นถัดไป" และไม่บอก "ยิ่งหลายแผงยิ่งถูก" (กันข้อความไม่ตรงจริง)
+  - สูตรเงิน priceCart/payload/กันซ้ำ ไม่เปลี่ยน · ค่าส่ง ฿9 · PromptPay/เบอร์ร้าน ยังว่าง
+  - รวมการแก้ของ Codex บนเว็บ (commit e6f446f 23 พ.ย.: ช่องกรอกจำนวนฟองชัดขึ้น) ไว้ครบ · ฐาน = หน้าเว็บจริง SHA b708fc5a…
+
   v9.5 · 23 พ.ย. 2569 (ซูซี่ ต่อจาก v9.4 ของ Codex: ยืนยันส่วนลดคืนถาดก่อนใช้)
   - ปุ่ม ยืนยัน/แก้ไข/ยกเลิก คืนถาด สูง ≥56px · ข้อความเตือนแถบล่างเรียงใหม่ (ชื่อ เบอร์ ที่อยู่ ขั้นต่ำ ก่อนเรื่องถาด)
   - สูตรเงิน ตาราง 2026-11-23-v7 payload pipeline.url ไม่เปลี่ยน
@@ -1032,15 +1038,15 @@ return __r.PromptPay; })(); /* PROMPTPAY-END */
 'use strict';
 /* ===== ค่าตั้ง (ตามมติเจ้าของ 5 พ.ย. 2569 · ราคาเป็นบาทจำนวนเต็ม) ===== */
 const CONFIG = {
-  priceTableVersion: '2026-11-23-v7',   // v9.2: ค่าส่ง ฿9 (เจ้าของสั่ง 23 พ.ย.)   // v8 · ต้องตรงกับ PRICE_TABLE_VERSION ใน Backend.gs (เซิร์ฟเวอร์ปฏิเสธฉบับอื่น)
+  priceTableVersion: '2026-11-25-v8',   // v9.6: กำไร ≥ ฿5/แผง (เจ้าของสั่ง 25 พ.ย.) ·   // v9.2: ค่าส่ง ฿9 (เจ้าของสั่ง 23 พ.ย.)   // v8 · ต้องตรงกับ PRICE_TABLE_VERSION ใน Backend.gs (เซิร์ฟเวอร์ปฏิเสธฉบับอื่น)
   // เบอร์ไข่ตาม มกษ. 6702-2553 · prices = [1–4 แผง, 5–9 แผง, 10 แผงขึ้นไป] บาท/แผง 30 ฟอง
   sizes: [
-    { code:'0', label:'ใหญ่พิเศษ', weight:'มากกว่า 70 กรัม/ฟอง', prices:[154,151,148], egg:1.00 },
+    { code:'0', label:'ใหญ่พิเศษ', weight:'มากกว่า 70 กรัม/ฟอง', prices:[154,154,154], egg:1.00 },
     { code:'1', label:'ใหญ่มาก', weight:'65–70 กรัม/ฟอง',      prices:[148,145,142], egg:.94 },
-    { code:'2', label:'ใหญ่', weight:'60–65 กรัม/ฟอง',      prices:[140,136,133], egg:.88 },
-    { code:'3', label:'กลาง', weight:'55–60 กรัม/ฟอง',      prices:[132,130,127], egg:.82 },
-    { code:'4', label:'เล็ก', weight:'50–55 กรัม/ฟอง',      prices:[126,124,121], egg:.76 },
-    { code:'5', label:'เล็กมาก', weight:'45–50 กรัม/ฟอง',      prices:[118,116,113], egg:.70 }
+    { code:'2', label:'ใหญ่', weight:'60–65 กรัม/ฟอง',      prices:[140,136,136], egg:.88 },
+    { code:'3', label:'กลาง', weight:'55–60 กรัม/ฟอง',      prices:[133,133,133], egg:.82 },
+    { code:'4', label:'เล็ก', weight:'50–55 กรัม/ฟอง',      prices:[130,130,130], egg:.76 },
+    { code:'5', label:'เล็กมาก', weight:'45–50 กรัม/ฟอง',      prices:[123,123,123], egg:.70 }
   ],
   // ขั้นราคาแผง นับแผงเต็มรวมทุกเบอร์ในออเดอร์
   trayTiers: [
@@ -1873,7 +1879,7 @@ function renderCompare(s){
   $('cmpArea').innerHTML = `<p class="cmpnote" style="margin-top:0">เบอร์ ${s.code} ถ้าสั่งเบอร์นี้อย่างเดียว · ${optsLabel()}</p>
     <table class="cmp"><thead><tr><th scope="col">จำนวน</th><th scope="col">ยอดชำระ</th><th scope="col">ตกฟองละ</th></tr></thead><tbody>` +
     rows.map(r => `<tr class="${r.perEggSatang === min ? 'best' : ''}" data-eggs="${r.eggs}"><td>${r.label}</td><td>${baht(r.total)}</td><td>${satangTxt(r.perEggSatang)}</td></tr>`).join('') +
-    `</tbody></table><p class="cmpnote">ราคาต่อฟอง${curZone().pickup ? '' : 'รวมค่าส่งแล้ว'} · ครบ 30 ฟองคิดเป็นแผง · 10 แผงขึ้นไปได้ราคาส่ง</p>`;
+    `</tbody></table><p class="cmpnote">ราคาต่อฟอง${curZone().pickup ? '' : 'รวมค่าส่งแล้ว'} · ครบ 30 ฟองคิดเป็นแผง${s.prices[2] < s.prices[0] ? ' · 10 แผงขึ้นไปได้ราคาส่ง' : ''}</p>`;
 }
 
 /* ===== ไอติม ชวนคุ้ม (v9) =====
@@ -1947,7 +1953,8 @@ function renderCoach(c){
     return { need, text: `อีก ${need} แผง ได้ราคาขั้น ${nt.label} ทุกแผงทุกเบอร์ (เบอร์ ${cur.code} จาก ${baht(cur.prices[c.tier.idx])} เหลือ ${baht(cur.prices[nt.idx])}/แผง) ยอดชำระจะเป็น ${baht(a.total)} ค่ะ` +
       (nt.wholesale ? ' · ราคาส่งไม่ร่วมส่วนลดโอนก่อนนะคะ' : '') };
   };
-  if (ft > 0 && nt && nt.min - ft <= 3 && state.cart[curTray] + (nt.min - ft) <= CONFIG.maxQty){
+  const ntCheaper = nt && cur.prices[nt.idx] < cur.prices[c.tier.idx];   // v9.6: ขั้นถัดไปต้องถูกลงจริงจึงชวน
+  if (ft > 0 && nt && ntCheaper && nt.min - ft <= 3 && state.cart[curTray] + (nt.min - ft) <= CONFIG.maxQty){
     const t = tierMsg();
     show('tier', t.text, `เพิ่มเบอร์ ${cur.code} อีก ${t.need} แผง`, () => { setEggs(cur.code, eggsOfSize(cur.code) + t.need * EGGS_PER_TRAY); });
     return;
@@ -1955,7 +1962,7 @@ function renderCoach(c){
   // 5) เคล็ดลับ · v9: ขั้น 1 มีตะกร้า บรรทัดผลลัพธ์ และตารางอยู่แล้ว จึงแสดงกล่องเฉพาะข้อความที่กดทำได้ (1, 3) และคำแนะนำตอนตะกร้าว่าง
   //    เคล็ดลับอื่นของ v8 ยังคิดเหมือนเดิม เก็บไว้ใน data-tip (ไม่แสดง) เพื่อให้หน้าสั้นลง
   const tipOnly = text => { hide(); box.dataset.kind = 'tip-hidden'; box.dataset.tip = text; };
-  if (ft > 0 && nt && state.cart[curTray] + (nt.min - ft) <= CONFIG.maxQty){ tipOnly(tierMsg().text); return; }
+  if (ft > 0 && nt && ntCheaper && state.cart[curTray] + (nt.min - ft) <= CONFIG.maxQty){ tipOnly(tierMsg().text); return; }
   if (ft > 0 && c.tier.wholesale){
     tipOnly(`ได้ราคาส่งแล้วค่ะ เบอร์ ${cur.code} ${baht(cur.prices[c.tier.idx])}/แผง` + (c.trays.ppTraysReturned ? ' ขอบคุณที่คืนรังไข่นะคะ' : '') +
       (state.pay === 'PREPAY_TRANSFER' ? ' · แผงราคาส่งไม่ร่วมส่วนลดโอนก่อนนะคะ' : ''));
@@ -1967,7 +1974,7 @@ function renderCoach(c){
     // v9: ขั้น 1 มีตะกร้า + บรรทัดผลลัพธ์อยู่แล้ว เคล็ดลับทั่วไปไม่แสดง (ประหยัดความยาวหน้า) · ข้อความเดิมเก็บไว้ใน data-tip ให้ทดสอบได้
     tipOnly(`ยกแผง 30 ฟอง เบอร์ ${cur.code} ${perEggTxt(oneTray)} คุ้มกว่าแพ็กเล็กและไข่รายฟองนะคะ`);
   } else {
-    show('tip', `ยกแผง 30 ฟอง เบอร์ ${cur.code} ${perEggTxt(oneTray)} ยิ่งหลายแผงยิ่งถูก นับรวมทุกเบอร์ในออเดอร์ · อยากได้น้อยก็สั่งเป็นฟองได้ ระบบจัดแบบถูกที่สุดให้ค่ะ`);
+    show('tip', `ยกแผง 30 ฟอง เบอร์ ${cur.code} ${perEggTxt(oneTray)} ${cur.prices[2] < cur.prices[0] ? 'ยิ่งหลายแผงยิ่งถูก นับรวมทุกเบอร์ในออเดอร์ · ' : ''}อยากได้น้อยก็สั่งเป็นฟองได้ ระบบจัดแบบถูกที่สุดให้ค่ะ`);
   }
 }
 
