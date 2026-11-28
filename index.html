@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 <!--
+  v9.7 · 28 พ.ย. 2569 (เจ้าของให้ QR พร้อมเพย์ร้าน SCB ลงท้าย 9178 · เลือกแบบ QR เดิม + ลูกค้าพิมพ์ยอดเอง)
+  - หน้าโอนเงิน (#step4): แสดงรูป QR พร้อมเพย์แบบไม่ระบุยอด (static, ตรวจ CRC แล้ว) + ยอดที่ต้องโอนตัวใหญ่ + เตือนให้พิมพ์ยอดให้ตรง · ปลายทางลงท้าย 9178
+  - ไม่เปลี่ยนราคา/priceCart/payload/Apps Script · CONFIG.promptpay.id ยังว่าง (ไม่สร้าง QR ระบุยอดเอง)
+
   v9.6 · 25 พ.ย. 2569 (เจ้าของสั่ง: ตั้งราคาให้ได้กำไร ≥ ฿5/แผง จากราคารับร้านศูนย์ไข่อุบล 25 พ.ย.)
   - ตารางราคา 2026-11-25-v8 (ต้องคู่กับ Backend.gs v8 / Code.gs 1.4.0): เบอร์ 0 154/154/154 · 1 148/145/142 (เดิม) · 2 140/136/136 · 3 133/133/133 · 4 130/130/130 · 5 123/123/123
   - เบอร์ที่ทุกขั้นราคาเท่ากัน ไม่ชวน "เพิ่มแผงให้ได้ราคาขั้นถัดไป" และไม่บอก "ยิ่งหลายแผงยิ่งถูก" (กันข้อความไม่ตรงจริง)
@@ -1102,7 +1106,8 @@ const CONFIG = {
     AFTERNOON: { name:'รอบบ่าย', note:'ก่อนรถติดช่วงเลิกงาน' },
     PICKUP:    { name:'มารับเอง', note:'ที่ร้าน' }
   },
-  promptpay: { id: '' /* [รอเจ้าของ] */ , name: '' },
+  promptpay: { id: '' /* ไม่ใช้ QR ระบุยอดอัตโนมัติ (เจ้าของเลือก 28 พ.ย.) */ , name: '', tail: '9178',
+    staticQr: 'data:image/png;base64,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' /* v9.7: QR พร้อมเพย์ร้าน (SCB · ผู้จ่ายระบุจำนวนเงิน) ตัดจากรูปที่เจ้าของส่ง 28 พ.ย. */ },
   shopPhone: '',           // [รอเจ้าของ] เบอร์ร้าน · ว่าง = แสดง [เบอร์ร้าน]
   gpsNudgeM: 10,           // ขยับหมุดครั้งละ 10 เมตร
   pipeline: {
@@ -2136,6 +2141,13 @@ function renderStep6(){   // v9: หน้าโอนเงิน (section #ste
     $('howSave').textContent = 'กดปุ่มด้านล่าง หรือแคปหน้าจอไว้';
     $('howScan').textContent = 'เลือกสแกน แล้วเลือกรูป QR ที่บันทึกไว้';
     $('btnSaveQr').classList.remove('hidden');
+  } else if (CONFIG.promptpay.staticQr){
+    // v9.7: QR ร้านแบบไม่ระบุยอด · ลูกค้าพิมพ์ยอดเองในแอปธนาคาร
+    $('qrArea').innerHTML = `<div class="qrbox" id="qrBox"><img src="${CONFIG.promptpay.staticQr}" alt="QR พร้อมเพย์ร้านอุบลเฟรชเอ้ก (ผู้จ่ายพิมพ์ยอดเอง)" style="width:100%;height:auto;display:block"></div>`;
+    $('qrNote').innerHTML = `<b style="font-size:20px;color:var(--ink)">สแกนแล้วพิมพ์ยอด ${bahtS(amountSatang)} ให้ตรง</b><br>พร้อมเพย์ร้าน ลงท้าย ${esc(CONFIG.promptpay.tail || '')} · ตรวจชื่อบัญชีในแอปธนาคารก่อนกดโอน`;
+    $('howSave').textContent = 'กดปุ่มด้านล่าง หรือแคปหน้าจอไว้';
+    $('howScan').textContent = `เลือกสแกน เลือกรูป QR ที่บันทึกไว้ แล้วพิมพ์ยอด ${bahtS(amountSatang)}`;
+    $('btnSaveQr').classList.remove('hidden');
   } else {
     $('qrArea').innerHTML = `<div class="qrbox ph" id="qrBox" role="img" aria-label="ที่สำหรับ QR พร้อมเพย์ของร้าน ยังไม่มี"><b>[QR พร้อมเพย์ร้าน]</b><span>ร้านยังไม่ได้ตั้ง QR ในหน้านี้</span></div>`;
     $('qrNote').textContent = 'ร้านจะส่งรายละเอียดการโอนเงินให้ทางโทรศัพท์หรือข้อความ ตามเบอร์ที่กรอกไว้';
@@ -2520,6 +2532,10 @@ $('slip').addEventListener('change', () => {
 });
 /* บันทึกรูป QR (เฉพาะเมื่อมี QR จริง) */
 $('btnSaveQr').onclick = () => {
+  if (!qrSvgText && CONFIG.promptpay.staticQr && state.submitted){   // v9.7: บันทึกรูป QR ร้านแบบไม่ระบุยอด
+    const a = document.createElement('a'); a.href = CONFIG.promptpay.staticQr; a.download = `ubonfreshegg-promptpay-${state.submitted.orderId}.png`;
+    document.body.appendChild(a); a.click(); a.remove(); return;
+  }
   if (!qrSvgText || !state.submitted) return;
   const img = new Image(), url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qrSvgText);
   img.onload = () => {
